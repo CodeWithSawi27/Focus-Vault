@@ -7,29 +7,35 @@ import { useRouter } from 'expo-router';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { PrimaryButton } from '@/src/components/ui/PrimaryButton';
 import { InputField } from '@/src/components/ui/InputField';
-import { loginUser } from '@/src/services/authService';
+import { registerUser } from '@/src/services/authService';
 import { Colors, Typography } from '@/src/constants/theme';
 import { Layout } from '@/src/constants/spacing';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const router = useRouter();
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail]             = useState('');
+  const [password, setPassword]       = useState('');
+  const [confirm, setConfirm]         = useState('');
+  const [error, setError]             = useState('');
+  const [loading, setLoading]         = useState(false);
 
-  const handleLogin = useCallback(async () => {
-    if (!email || !password) { setError('Please fill in all fields.'); return; }
+  const handleRegister = useCallback(async () => {
+    if (!displayName || !email || !password || !confirm) {
+      setError('Please fill in all fields.'); return;
+    }
+    if (password !== confirm) { setError('Passwords do not match.'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setError('');
     setLoading(true);
     try {
-      await loginUser(email.trim(), password);
+      await registerUser(email.trim(), password, displayName.trim());
     } catch (e: any) {
-      setError(e.message ?? 'Login failed. Please try again.');
+      setError(e.message ?? 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [email, password]);
+  }, [displayName, email, password, confirm]);
 
   return (
     <KeyboardAvoidingView
@@ -41,12 +47,19 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>FocusVault</Text>
-          <Text style={styles.subtitle}>Welcome back</Text>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Start building better habits</Text>
         </View>
 
         <GlassCard>
           <View style={styles.form}>
+            <InputField
+              label="Full Name"
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Your name"
+              autoCapitalize="words"
+            />
             <InputField
               label="Email"
               value={email}
@@ -59,13 +72,20 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              placeholder="Min. 6 characters"
+            />
+            <InputField
+              label="Confirm Password"
+              value={confirm}
+              onChangeText={setConfirm}
+              secureTextEntry
               placeholder="••••••••"
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <PrimaryButton label="Sign In" onPress={handleLogin} loading={loading} />
-            <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={styles.link}>
+            <PrimaryButton label="Create Account" onPress={handleRegister} loading={loading} />
+            <TouchableOpacity onPress={() => router.back()} style={styles.link}>
               <Text style={styles.linkText}>
-                Don't have an account? <Text style={styles.linkAccent}>Sign Up</Text>
+                Already have an account? <Text style={styles.linkAccent}>Sign In</Text>
               </Text>
             </TouchableOpacity>
           </View>
