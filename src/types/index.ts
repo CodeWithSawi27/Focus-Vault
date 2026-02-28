@@ -9,6 +9,12 @@ export interface Habit {
   created_at: string;
   updated_at: string;
 }
+export interface HabitLog {
+  id: string;
+  habit_id: string;
+  user_id: string;
+  completed_at: string; // Supabase returns string for timestamptz
+}
 
 export interface HabitLog {
   id: string;

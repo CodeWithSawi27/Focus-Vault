@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useAuthStore } from '../src/store/authStore';
-import { useRouter, useSegments } from 'expo-router';
+import { useAuthStore } from '@/src/store/authStore';
+import { useAuthListener } from '@/src/hooks/useAuthListener';
 
 export default function RootLayout() {
+  useAuthListener();
+
   const { user, initialized } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
@@ -20,6 +22,8 @@ export default function RootLayout() {
       router.replace('/(tabs)');
     }
   }, [user, initialized]);
+
+  if (!initialized) return null;
 
   return (
     <>
