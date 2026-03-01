@@ -1,72 +1,62 @@
-import { useCallback } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '@/src/services/supabase';
-import { useAuthStore } from '@/src/store/authStore';
 import { useDashboard } from '@/src/hooks/useDashboard';
+import { useAuthStore } from '@/src/store/authStore';
 import { DashboardHeader } from '@/src/components/dashboard/DashboardHeader';
 import { StatsGrid } from '@/src/components/dashboard/StatsGrid';
 import { TodayHabits } from '@/src/components/dashboard/TodayHabits';
-import { QuickActions } from '@/src/components/dashboard/QuickActions';
-import { Colors } from '@/src/constants/theme';
+import { SmartCTA } from '@/src/components/dashboard/SmartCTA';
+import { Colors, Typography } from '@/src/constants/theme';
 import { Layout, Spacing } from '@/src/constants/spacing';
 
 export default function DashboardScreen() {
   const { user } = useAuthStore();
   const {
-    todayHabits,
-    completedTodayIds,
-    totalFocusToday,
-    currentStreak,
-    completionRate,
-    refresh,
+    greeting, formattedDate,
+    habitsToday, completedToday,
+    todayStats, lastSession, longestStreak,
+    loading, toggleHabit, refresh,
   } = useDashboard();
-
-  const focusMinutes = Math.floor(totalFocusToday / 60);
-
-  const handleToggleHabit = useCallback(async (habitId: string) => {
-    if (!user) return;
-    const alreadyDone = completedTodayIds.includes(habitId);
-
-    if (alreadyDone) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      await supabase
-        .from('habit_logs')
-        .delete()
-        .eq('habit_id', habitId)
-        .eq('user_id', user.uid)
-        .gte('completed_at', today.toISOString());
-    } else {
-      await supabase
-        .from('habit_logs')
-        .insert({ habit_id: habitId, user_id: user.uid });
-    }
-    refresh();
-  }, [completedTodayIds, user, refresh]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refresh}
+            tintColor={Colors.text.tertiary}
+          />
+        }
       >
-        <DashboardHeader streak={currentStreak} />
-
-        <StatsGrid
-          completionRate={completionRate}
-          completedCount={completedTodayIds.length}
-          totalHabits={todayHabits.length}
-          focusMinutes={focusMinutes}
-          streak={currentStreak}
+        {/* Header */}
+        <DashboardHeader
+          greeting={greeting}
+          formattedDate={formattedDate}
+          displayName={user?.displayName ?? null}
+          longestStreak={longestStreak}
         />
 
-        <QuickActions />
+        {/* Stats */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Overview</Text>
+          <StatsGrid stats={todayStats} />
+        </View>
 
+        {/* Smart CTA */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Focus</Text>
+          <SmartCTA lastSession={lastSession} />
+        </View>
+
+        {/* Today's habits */}
         <TodayHabits
-          habits={todayHabits}
-          completedIds={completedTodayIds}
-          onToggle={handleToggleHabit}
+          habits={habitsToday}
+          completedToday={completedToday}
+          onToggle={toggleHabit}
         />
       </ScrollView>
     </SafeAreaView>
@@ -81,7 +71,17 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.md,
-    paddingBottom: 32,
-    gap: Spacing.lg,
+    paddingBottom: 48,
+    gap: Spacing.xl,
+  },
+  section: {
+    gap: Spacing.sm,
+  },
+  sectionLabel: {
+    ...Typography.caption,
+    color: Colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '600',
   },
 });

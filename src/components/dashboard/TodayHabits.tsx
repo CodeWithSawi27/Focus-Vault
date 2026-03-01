@@ -1,149 +1,183 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CheckCircle2, Circle, ArrowRight } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
+import { CheckCircle2, Circle, ArrowRight, ListChecks } from 'lucide-react-native';
 import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
-import { Spacing } from '@/src/constants/spacing';
 import type { Habit } from '@/src/types';
+
+const MAX_VISIBLE = 4;
 
 interface TodayHabitsProps {
   habits: Habit[];
-  completedIds: string[];
+  completedToday: Set<string>;
   onToggle: (habitId: string) => void;
 }
 
-export const TodayHabits = ({ habits, completedIds, onToggle }: TodayHabitsProps) => {
-  const router = useRouter();
-  const preview = habits.slice(0, 4);
+export const TodayHabits = ({
+  habits,
+  completedToday,
+  onToggle,
+}: TodayHabitsProps) => {
+  const router   = useRouter();
+  const visible  = habits.slice(0, MAX_VISIBLE);
+  const overflow = habits.length - MAX_VISIBLE;
+
+  if (habits.length === 0) {
+    return (
+      <View style={styles.emptyCard}>
+        <ListChecks size={28} color={Colors.text.tertiary} strokeWidth={1.5} />
+        <Text style={styles.emptyTitle}>No habits today</Text>
+        <Text style={styles.emptySubtitle}>
+          Add your first habit to start building momentum.
+        </Text>
+        <TouchableOpacity
+          style={styles.emptyBtn}
+          onPress={() => router.push('/(tabs)/habits')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.emptyBtnText}>Go to Habits</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
+      {/* Section header */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Today</Text>
+        <Text style={styles.sectionLabel}>Today's Habits</Text>
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/habits')}
-          style={styles.seeAllBtn}
-          activeOpacity={0.7}
+          activeOpacity={0.6}
+          style={styles.viewAll}
         >
-          <Text style={styles.seeAll}>All habits</Text>
-          <ArrowRight size={14} color={Colors.accent.blue} strokeWidth={2} />
+          <Text style={styles.viewAllText}>View All</Text>
+          <ArrowRight size={13} color={Colors.text.tertiary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
-      {preview.length === 0 ? (
-        <View style={styles.emptyWrapper}>
-          <BlurView intensity={50} tint="light" style={styles.blur}>
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>No habits scheduled</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/habits')}>
-                <Text style={styles.emptyAction}>Create your first habit</Text>
-              </TouchableOpacity>
-            </View>
-          </BlurView>
-        </View>
-      ) : (
-        preview.map((habit, index) => {
-          const done = completedIds.includes(habit.id);
-          const isLast = index === preview.length - 1;
+      {/* Habit rows */}
+      <View style={styles.card}>
+        {visible.map((habit, index) => {
+          const done   = completedToday.has(habit.id);
+          const isLast = index === visible.length - 1 && overflow <= 0;
+
           return (
-            <View key={habit.id} style={[styles.habitWrapper, !isLast && styles.habitBorder]}>
-              <BlurView intensity={50} tint="light" style={styles.blur}>
-                <TouchableOpacity
-                  onPress={() => onToggle(habit.id)}
-                  activeOpacity={0.7}
-                  style={styles.habitInner}
-                >
-                  {done
-                    ? <CheckCircle2 size={22} color={Colors.accent.green} strokeWidth={1.8} />
-                    : <Circle size={22} color={Colors.text.tertiary} strokeWidth={1.5} />
-                  }
-                  <View style={styles.habitInfo}>
-                    <Text style={[styles.habitName, done && styles.habitNameDone]}>
-                      {habit.name}
-                    </Text>
-                    {habit.streak > 0 && (
-                      <Text style={styles.habitStreak}>{habit.streak} day streak</Text>
-                    )}
-                  </View>
-                  {done && (
-                    <View style={styles.doneTag}>
-                      <Text style={styles.doneTagText}>Done</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </BlurView>
-            </View>
+            <TouchableOpacity
+              key={habit.id}
+              style={[styles.row, !isLast && styles.rowBorder]}
+              onPress={() => onToggle(habit.id)}
+              activeOpacity={0.6}
+            >
+              {/* Checkbox */}
+              <View style={styles.check}>
+                {done ? (
+                  <CheckCircle2
+                    size={22}
+                    color={Colors.accent.green}
+                    strokeWidth={2}
+                  />
+                ) : (
+                  <Circle
+                    size={22}
+                    color="rgba(0,0,0,0.15)"
+                    strokeWidth={1.5}
+                  />
+                )}
+              </View>
+
+              {/* Name + streak */}
+              <View style={styles.info}>
+                <Text style={[styles.habitName, done && styles.habitNameDone]}>
+                  {habit.name}
+                </Text>
+                {habit.streak > 0 && (
+                  <Text style={styles.habitStreak}>
+                    {habit.streak}d streak
+                  </Text>
+                )}
+              </View>
+
+              {/* Done tag */}
+              {done && (
+                <View style={styles.doneTag}>
+                  <Text style={styles.doneTagText}>Done</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           );
-        })
-      )}
+        })}
+
+        {/* Overflow row */}
+        {overflow > 0 && (
+          <TouchableOpacity
+            style={styles.overflowRow}
+            onPress={() => router.push('/(tabs)/habits')}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.overflowText}>
+              +{overflow} more habit{overflow > 1 ? 's' : ''} — View All
+            </Text>
+            <ArrowRight size={14} color={Colors.text.tertiary} strokeWidth={2} />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { gap: 0 },
+  container: {
+    gap: 8,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
   },
-  sectionTitle: {
-    ...Typography.title3,
-    color: Colors.text.primary,
-    letterSpacing: -0.3,
+  sectionLabel: {
+    ...Typography.caption,
+    color: Colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '600',
   },
-  seeAllBtn: {
+  viewAll: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
   },
-  seeAll: {
-    ...Typography.subhead,
-    color: Colors.accent.blue,
-    fontWeight: '500',
-  },
-  emptyWrapper: {
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.08)',
-    ...Shadow.sm,
-  },
-  blur: { width: '100%' },
-  empty: {
-    padding: 24,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.65)',
-    gap: 8,
-  },
-  emptyText: {
-    ...Typography.body,
+  viewAllText: {
+    ...Typography.caption,
     color: Colors.text.tertiary,
+    fontWeight: '600',
   },
-  emptyAction: {
-    ...Typography.subhead,
-    color: Colors.accent.blue,
-    fontWeight: '500',
-  },
-  habitWrapper: {
-    overflow: 'hidden',
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.08)',
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.xs,
+    overflow: 'hidden',
     ...Shadow.sm,
   },
-  habitBorder: {},
-  habitInner: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
     paddingHorizontal: 14,
-    backgroundColor: 'rgba(255,255,255,0.65)',
+    paddingVertical: 13,
     gap: 12,
   },
-  habitInfo: { flex: 1 },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+  },
+  check: {
+    width: 24,
+    alignItems: 'center',
+  },
+  info: {
+    flex: 1,
+    gap: 2,
+  },
   habitName: {
     ...Typography.callout,
     color: Colors.text.primary,
@@ -154,19 +188,68 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   habitStreak: {
-    ...Typography.footnote,
+    ...Typography.caption,
     color: Colors.text.tertiary,
-    marginTop: 1,
+    letterSpacing: 0.2,
   },
   doneTag: {
     backgroundColor: Colors.accent.greenMuted,
-    borderRadius: Radius.full,
+    borderRadius: Radius.sm,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   doneTagText: {
     ...Typography.caption,
     color: Colors.accent.green,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  overflowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  overflowText: {
+    ...Typography.subhead,
+    color: Colors.text.tertiary,
+    fontWeight: '500',
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.lg,
+    padding: 24,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.07)',
+    ...Shadow.sm,
+  },
+  emptyTitle: {
+    ...Typography.callout,
+    color: Colors.text.primary,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  emptySubtitle: {
+    ...Typography.subhead,
+    color: Colors.text.tertiary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyBtn: {
+    marginTop: 8,
+    backgroundColor: Colors.text.primary,
+    borderRadius: Radius.full,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  emptyBtnText: {
+    ...Typography.subhead,
+    color: Colors.text.inverse,
     fontWeight: '600',
   },
 });
