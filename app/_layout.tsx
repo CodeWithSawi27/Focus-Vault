@@ -6,21 +6,15 @@ import { useAuthListener } from '@/src/hooks/useAuthListener';
 
 export default function RootLayout() {
   useAuthListener();
-
   const { user, initialized } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (!initialized) return;
-
     const inAuthGroup = segments[0] === '(auth)';
-
-    if (!user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      router.replace('/(tabs)');
-    }
+    if (!user && !inAuthGroup) router.replace('/(auth)/login');
+    else if (user && inAuthGroup) router.replace('/(tabs)');
   }, [user, initialized]);
 
   if (!initialized) return null;

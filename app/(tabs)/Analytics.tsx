@@ -1,77 +1,131 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import React, { useState } from 'react';
-import { logoutUser } from '@/src/services/authService';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAnalytics } from '@/src/hooks/useAnalytics';
+import { SummaryRow } from '@/src/components/analytics/SummaryRow';
+import { WeeklyHabitsChart } from '@/src/components/analytics/WeeklyHabitsChart';
+import { FocusTimeChart } from '@/src/components/analytics/FocusTimeChart';
+import { CompletionRateChart } from '@/src/components/analytics/CompletionRateChart';
+import { StreakLeaderboard } from '@/src/components/analytics/StreakLeaderboard';
 import { Colors, Typography } from '@/src/constants/theme';
+import { Layout, Spacing } from '@/src/constants/spacing';
 
-const Analytics = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-
-  const handleLogout = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await logoutUser();
-      console.log('✅ User logged out successfully');
-      // TODO: navigate to login screen if using router
-    } catch (e: any) {
-      setError(e.message ?? 'Logout failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function AnalyticsScreen() {
+  const {
+    habitsByDay, focusByDay, completionRate,
+    streaks, summary, loading, refresh,
+  } = useAnalytics();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Analytics</Text>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        disabled={loading}
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refresh}
+            tintColor={Colors.text.tertiary}
+          />
+        }
       >
-        <Text style={styles.logoutButtonText}>
-          {loading ? 'Logging out...' : 'Logout'}
-        </Text>
-      </TouchableOpacity>
-    </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Analytics</Text>
+          <Text style={styles.subtitle}>Your productivity at a glance</Text>
+        </View>
+
+        {/* 30-day summary tiles */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Last 30 Days</Text>
+          <SummaryRow summary={summary} />
+        </View>
+
+        {/* Weekly bar charts */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>This Week</Text>
+          <WeeklyHabitsChart data={habitsByDay} />
+        </View>
+
+        <View style={styles.section}>
+          <FocusTimeChart data={focusByDay} />
+        </View>
+
+        {/* 30-day completion trend */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>30-Day Trend</Text>
+          <CompletionRateChart data={completionRate} />
+        </View>
+
+        {/* Streak leaderboard */}
+        {streaks.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Leaderboard</Text>
+            <StreakLeaderboard habits={streaks} />
+          </View>
+        )}
+
+        {/* Empty state */}
+        {!loading && summary.totalHabitsCompleted === 0 && (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No data yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Complete habits and focus sessions to see your analytics populate here.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: Colors.background,
-    padding: 20,
-    gap: 16,
+  },
+  scroll: {
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: Spacing.md,
+    paddingBottom: 48,
+    gap: Spacing.lg,
+  },
+  header: {
+    gap: 4,
   },
   title: {
-    ...Typography.largeTitle,
+    ...Typography.title2,
     color: Colors.text.primary,
-    marginBottom: 20,
+    letterSpacing: -0.4,
   },
-  error: {
-    ...Typography.footnote,
-    color: Colors.accent.red,
-    textAlign: 'center',
-  },
-  logoutButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutButtonText: {
+  subtitle: {
     ...Typography.subhead,
-    color: Colors.text.inverse,
+    color: Colors.text.tertiary,
+  },
+  section: {
+    gap: Spacing.sm,
+  },
+  sectionLabel: {
+    ...Typography.caption,
+    color: Colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     fontWeight: '600',
   },
+  empty: {
+    paddingTop: 40,
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    ...Typography.headline,
+    color: Colors.text.primary,
+    fontWeight: '600',
+  },
+  emptySubtitle: {
+    ...Typography.subhead,
+    color: Colors.text.tertiary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });
-
-export default Analytics;
