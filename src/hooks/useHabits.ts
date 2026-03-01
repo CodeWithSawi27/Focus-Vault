@@ -3,13 +3,17 @@ import { supabase } from '@/src/services/supabase';
 import { useAuthStore } from '@/src/store/authStore';
 import { useHabitStore } from '@/src/store/habitStore';
 import { calculateStreak } from '@/src/utils/streakCalculator';
+import {
+  scheduleHabitReminder,
+  cancelHabitReminder,
+} from '@/src/services/notifications';
 import type { Habit } from '@/src/types';
 
 export interface CreateHabitPayload {
   name: string;
   description?: string;
   frequency: 'daily' | 'weekly';
-  reminderTime?: string;
+  reminder_time?: string | null;
 }
 
 export const useHabits = () => {
@@ -35,13 +39,32 @@ export const useHabits = () => {
 
   const createHabit = useCallback(async (payload: CreateHabitPayload) => {
     if (!user) return;
-    const { error: insertError } = await supabase.from('habits').insert({
-      user_id: user.uid,
-      name: payload.name.trim(),
-      description: payload.description?.trim() ?? null,
-      frequency: payload.frequency,
-    });
+
+    const { data, error: insertError } = await supabase
+      .from('habits')
+      .insert({
+        user_id: user.uid,
+        name: payload.name.trim(),
+        description: payload.description?.trim() ?? null,
+        frequency: payload.frequency,
+        reminder_time: payload.reminder_time ?? null,
+      })
+      .select()
+      .single();
+
     if (insertError) throw new Error(insertError.message);
+
+    // Schedule notification if reminder time was set
+    if (data && payload.reminder_time) {
+      await scheduleHabitReminder({
+        habitId: data.id,
+        habitName: data.name,
+        reminderTime: payload.reminder_time,
+        streak: 0,
+        incompleteCount: 1,
+      });
+    }
+
     await fetchHabits();
   }, [user, fetchHabits]);
 
@@ -55,17 +78,39 @@ export const useHabits = () => {
         name: payload.name?.trim(),
         description: payload.description?.trim() ?? null,
         frequency: payload.frequency,
+        reminder_time: payload.reminder_time ?? null,
       })
       .eq('id', habitId);
+
     if (updateError) throw new Error(updateError.message);
+
+    // Handle notification rescheduling
+    if (payload.reminder_time !== undefined) {
+      if (payload.reminder_time) {
+        await scheduleHabitReminder({
+          habitId,
+          habitName: payload.name ?? '',
+          reminderTime: payload.reminder_time,
+          streak: 0,
+          incompleteCount: 1,
+        });
+      } else {
+        await cancelHabitReminder(habitId);
+      }
+    }
+
     await fetchHabits();
   }, [fetchHabits]);
 
   const deleteHabit = useCallback(async (habitId: string) => {
+    // Cancel notification before deleting row
+    await cancelHabitReminder(habitId);
+
     const { error: deleteError } = await supabase
       .from('habits')
       .delete()
       .eq('id', habitId);
+
     if (deleteError) throw new Error(deleteError.message);
     await fetchHabits();
   }, [fetchHabits]);
@@ -85,11 +130,12 @@ export const useHabits = () => {
 
     const { data: habitData } = await supabase
       .from('habits')
-      .select('longest_streak')
+      .select('longest_streak, name, reminder_time')
       .eq('id', habitId)
       .single();
 
-    const currentLongest = (habitData as Pick<Habit, 'longest_streak'> | null)?.longest_streak ?? 0;
+    const currentLongest = (habitData as Pick<Habit, 'longest_streak' | 'name' | 'reminder_time'> | null)
+      ?.longest_streak ?? 0;
 
     await supabase
       .from('habits')
@@ -98,6 +144,17 @@ export const useHabits = () => {
         longest_streak: Math.max(streak, currentLongest),
       })
       .eq('id', habitId);
+
+    // Refresh notification body with updated streak
+    if (habitData?.reminder_time) {
+      await scheduleHabitReminder({
+        habitId,
+        habitName: habitData.name,
+        reminderTime: habitData.reminder_time,
+        streak,
+        incompleteCount: 1,
+      });
+    }
   }, []);
 
   const toggleHabitCompletion = useCallback(async (habitId: string) => {

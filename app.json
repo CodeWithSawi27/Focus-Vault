@@ -18,10 +18,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
-      }
+    "UIBackgroundModes": ["audio"],
+    "NSUserNotificationsUsageDescription": "FocusVault sends daily habit reminders to keep you consistent."
+  }
     },
     "android": {
       "adaptiveIcon": {

@@ -6,6 +6,7 @@ export interface Habit {
   frequency: 'daily' | 'weekly';
   streak: number;
   longest_streak: number;
+  reminder_time: string | null; // "HH:MM:SS" format from Postgres
   created_at: string;
   updated_at: string;
 }

@@ -1,5 +1,8 @@
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, ListChecks, Timer, BarChart2 } from 'lucide-react-native';
+import {
+  LayoutDashboard, ListChecks,
+  Timer, BarChart2, UserCircle,
+} from 'lucide-react-native';
 import { Colors } from '@/src/constants/theme';
 import { Platform, View, StyleSheet } from 'react-native';
 
@@ -57,9 +60,15 @@ export default function TabLayout() {
         options={{
           title: 'Analytics',
           tabBarIcon: ({ focused }) => <TabIcon Icon={BarChart2} focused={focused} />,
-      }}
+        }}
       />
-      
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={UserCircle} focused={focused} />,
+        }}
+      />
     </Tabs>
   );
 }

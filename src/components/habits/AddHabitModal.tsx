@@ -8,6 +8,7 @@ import { X } from 'lucide-react-native';
 import { InputField } from '@/src/components/ui/InputField';
 import { PrimaryButton } from '@/src/components/ui/PrimaryButton';
 import { HabitFrequencyPicker } from './HabitFrequencyPicker';
+import { ReminderTimePicker } from './ReminderTimePicker';
 import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
 import { Spacing } from '@/src/constants/spacing';
 import type { CreateHabitPayload } from '@/src/hooks/useHabits';
@@ -31,8 +32,10 @@ export const AddHabitModal = ({
   const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
   const [frequency, setFrequency]     = useState<'daily' | 'weekly'>('daily');
+  const [reminderTime, setReminderTime] = useState<string | null>(null);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState('');
+
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   const handleDismiss = useCallback(() => {
@@ -50,8 +53,12 @@ export const AddHabitModal = ({
         setName(editingHabit.name);
         setDescription(editingHabit.description ?? '');
         setFrequency(editingHabit.frequency);
+        setReminderTime(editingHabit.reminder_time ?? null);
       } else {
-        setName(''); setDescription(''); setFrequency('daily');
+        setName('');
+        setDescription('');
+        setFrequency('daily');
+        setReminderTime(null);
       }
       setError('');
       Animated.spring(slideAnim, {
@@ -68,14 +75,19 @@ export const AddHabitModal = ({
     setError('');
     setLoading(true);
     try {
-      await onSubmit({ name, description, frequency });
+      await onSubmit({
+        name,
+        description,
+        frequency,
+        reminder_time: reminderTime,
+      });
       handleDismiss();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }
-  }, [name, description, frequency, onSubmit, handleDismiss]);
+  }, [name, description, frequency, reminderTime, onSubmit, handleDismiss]);
 
   return (
     <Modal
@@ -123,6 +135,7 @@ export const AddHabitModal = ({
                     placeholder="e.g. Morning run"
                     autoCapitalize="sentences"
                   />
+
                   <InputField
                     label="Description"
                     value={description}
@@ -133,12 +146,30 @@ export const AddHabitModal = ({
                     numberOfLines={3}
                     style={styles.textArea}
                   />
+
+                  {/* Frequency */}
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Frequency</Text>
-                    <HabitFrequencyPicker value={frequency} onChange={setFrequency} />
+                    <HabitFrequencyPicker
+                      value={frequency}
+                      onChange={setFrequency}
+                    />
                   </View>
 
-                  {error ? <Text style={styles.error}>{error}</Text> : null}
+                  {/* Reminder */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Reminder</Text>
+                    <ReminderTimePicker
+                      value={reminderTime}
+                      onChange={setReminderTime}
+                    />
+                  </View>
+
+                  {error ? (
+                    <View style={styles.errorBox}>
+                      <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                  ) : null}
 
                   <View style={styles.buttonGroup}>
                     <PrimaryButton
@@ -176,11 +207,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
-    maxHeight: SCREEN_HEIGHT * 0.85,
+    maxHeight: SCREEN_HEIGHT * 0.9,
     ...Shadow.lg,
   },
-  keyboardView: { width: '100%' },
-  safeArea: { width: '100%' },
+  keyboardView: {
+    width: '100%',
+  },
+  safeArea: {
+    width: '100%',
+  },
   content: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? 20 : 40,
@@ -192,7 +227,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: Spacing.md,
   },
-  headerLeft: { width: 34 },
+  headerLeft: {
+    width: 34,
+  },
   title: {
     ...Typography.headline,
     color: Colors.text.primary,
@@ -230,7 +267,14 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     textAlignVertical: 'top',
   },
-  error: {
+  errorBox: {
+    backgroundColor: 'rgba(204,43,43,0.06)',
+    borderRadius: Radius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(204,43,43,0.12)',
+  },
+  errorText: {
     ...Typography.footnote,
     color: Colors.accent.red,
     textAlign: 'center',
