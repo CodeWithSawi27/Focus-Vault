@@ -8,10 +8,10 @@
       "ios"
     ],
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Expo-app.json-icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/Expo-app.json-splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },

@@ -2,51 +2,47 @@ import { useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Dimensions, NativeSyntheticEvent,
-  NativeScrollEvent,
+  NativeScrollEvent, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ListChecks, Timer, BarChart2, Zap } from 'lucide-react-native';
 import { useOnboardingStore } from '@/src/store/onboardingStore';
-import { OnboardingSlide } from '@/src/components/onboarding/OnboardingSlide';
 import { OnboardingDots } from '@/src/components/onboarding/OnboardingDots';
-import type { SlideData } from '@/src/components/onboarding/OnboardingSlide';
 import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+interface SlideData {
+  image: ReturnType<typeof require>;
+  tag: string;
+  title: string;
+  subtitle: string;
+}
+
 const SLIDES: SlideData[] = [
   {
-    icon: Zap,
-    iconBg: '#111111',
-    iconColor: '#FFFFFF',
+    image: require('@/assets/Welcome.png'),
     tag: 'Welcome',
     title: 'Build Focus.\nBuild Habits.',
     subtitle:
       'FocusVault helps you track habits, run focused work sessions, and watch your consistency compound over time.',
   },
   {
-    icon: ListChecks,
-    iconBg: 'rgba(37, 103, 30, 0.1)',
-    iconColor: Colors.accent.green,
+    image: require('@/assets/Habit-Tracker.png'),
     tag: 'Habit Tracker',
     title: 'Small habits.\nBig results.',
     subtitle:
       'Create daily and weekly habits, track streaks, and build momentum with a simple check-in system.',
   },
   {
-    icon: Timer,
-    iconBg: 'rgba(0,0,0,0.05)',
-    iconColor: Colors.text.primary,
+    image: require('@/assets/Focus-Timer.png'),
     tag: 'Focus Timer',
     title: 'Deep work,\non demand.',
     subtitle:
       'Use structured 25, 50, or 90 minute focus sessions to do your best work — every single day.',
   },
   {
-    icon: BarChart2,
-    iconBg: 'rgba(26, 86, 219, 0.08)',
-    iconColor: Colors.accent.blue,
+    image: require('@/assets/Analytics.png'),
     tag: 'Analytics',
     title: 'See your\nprogress clearly.',
     subtitle:
@@ -54,8 +50,30 @@ const SLIDES: SlideData[] = [
   },
 ];
 
+const OnboardingSlide = ({ slide }: { slide: SlideData }) => (
+  <View style={styles.slide}>
+    {/* Image */}
+    <View style={styles.imageContainer}>
+      <Image
+        source={slide.image}
+        style={styles.image}
+        resizeMode="contain"
+      />
+    </View>
+
+    {/* Text block */}
+    <View style={styles.textBlock}>
+      <View style={styles.tagWrap}>
+        <Text style={styles.tag}>{slide.tag}</Text>
+      </View>
+      <Text style={styles.title}>{slide.title}</Text>
+      <Text style={styles.subtitle}>{slide.subtitle}</Text>
+    </View>
+  </View>
+);
+
 export default function OnboardingScreen() {
-  const router                          = useRouter();
+  const router                           = useRouter();
   const { complete: completeOnboarding } = useOnboardingStore();
   const scrollRef                        = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex]    = useState(0);
@@ -162,6 +180,61 @@ const styles = StyleSheet.create({
   slider: {
     flex: 1,
   },
+
+  // ─── Slide ───────────────────────────────────────────────────────────────
+  slide: {
+    width: SCREEN_WIDTH,
+    flex: 1,
+    paddingHorizontal: 32,
+    justifyContent: 'center',
+    gap: 32,
+  },
+  imageContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    maxHeight: SCREEN_WIDTH * 0.75,
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    alignSelf: 'center',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  textBlock: {
+    gap: 12,
+  },
+  tagWrap: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.07)',
+  },
+  tag: {
+    ...Typography.caption,
+    color: Colors.text.secondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    letterSpacing: -0.8,
+    lineHeight: 40,
+  },
+  subtitle: {
+    ...Typography.callout,
+    color: Colors.text.secondary,
+    lineHeight: 24,
+  },
+
+  // ─── Bottom ───────────────────────────────────────────────────────────────
   bottom: {
     paddingHorizontal: 32,
     paddingBottom: 24,
