@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, TouchableOpacity,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LogIn } from 'lucide-react-native';
 import { PrimaryButton } from '@/src/components/ui/PrimaryButton';
 import { InputField } from '@/src/components/ui/InputField';
 import { loginUser } from '@/src/services/authService';
@@ -45,8 +44,12 @@ export default function LoginScreen() {
         >
           {/* Brand block */}
           <View style={styles.brandBlock}>
-            <View style={styles.logoMark}>
-              <LogIn size={26} color={Colors.text.inverse} strokeWidth={2} />
+            <View style={styles.logoWrap}>
+              <Image
+                source={require('@/assets/App-Store-Icon.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.brandName}>FocusVault</Text>
             <Text style={styles.brandTagline}>
@@ -128,15 +131,17 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingTop: Spacing.lg,
   },
-  logoMark: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 22,
+    overflow: 'hidden',
     marginBottom: 4,
     ...Shadow.md,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   brandName: {
     ...Typography.title1,

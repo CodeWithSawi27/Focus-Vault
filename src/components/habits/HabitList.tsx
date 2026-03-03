@@ -1,26 +1,31 @@
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Layers } from 'lucide-react-native';
-import { HabitCard } from './HabitCard';
-import { Colors, Typography } from '@/src/constants/theme';
-import { Spacing } from '@/src/constants/spacing';
+import { SwipeableHabitRow } from './SwipeableHabitRow';
+import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
 import type { Habit } from '@/src/types';
 
 interface HabitListProps {
   habits: Habit[];
-  completedTodayIds: string[];
+  completedTodayIds: Set<string>;
+  togglingIds: Set<string>;
+  deletingIds: Set<string>;
   loading: boolean;
   onToggle: (habitId: string) => void;
   onEdit: (habit: Habit) => void;
   onDelete: (habitId: string) => void;
+  setScrollEnabled?: (enabled: boolean) => void;
 }
 
 export const HabitList = ({
   habits,
   completedTodayIds,
+  togglingIds,
+  deletingIds,
   loading,
   onToggle,
   onEdit,
   onDelete,
+  setScrollEnabled,
 }: HabitListProps) => {
   if (loading) {
     return (
@@ -45,17 +50,37 @@ export const HabitList = ({
   }
 
   return (
-    <View style={styles.list}>
-      {habits.map((habit) => (
-        <HabitCard
-          key={habit.id}
-          habit={habit}
-          isCompletedToday={completedTodayIds.includes(habit.id)}
-          onToggle={() => onToggle(habit.id)}
-          onEdit={() => onEdit(habit)}
-          onDelete={() => onDelete(habit.id)}
-        />
-      ))}
+    <View>
+      {/* Gesture hint */}
+      <View style={styles.gestureHint}>
+        <Text style={styles.gestureHintText}>
+          Tap ○ to complete · Swipe left for options
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        {habits.map((habit, index) => {
+          const isLast = index === habits.length - 1;
+          return (
+            <View
+              key={habit.id}
+              style={[styles.rowWrapper, !isLast && styles.rowBorder]}
+            >
+              <SwipeableHabitRow
+                habit={habit}
+                isCompleted={completedTodayIds.has(habit.id)}
+                isToggling={togglingIds.has(habit.id)}
+                isDeleting={deletingIds.has(habit.id)}
+                onToggle={onToggle}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                setScrollEnabled={setScrollEnabled}
+                showHint={index === 0}
+              />
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 };
@@ -67,8 +92,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 80,
   },
-  list: {
-    gap: Spacing.sm,
+  gestureHint: {
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+  },
+  gestureHintText: {
+    fontSize: 11,
+    color: Colors.text.tertiary,
+    letterSpacing: 0.3,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.08)',
+    overflow: 'hidden',
+    ...Shadow.sm,
+  },
+  rowWrapper: {
+    backgroundColor: '#FFFFFF',
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   empty: {
     flex: 1,
@@ -87,12 +133,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   emptyTitle: {
-    ...Typography.headline,
+    fontSize: 17,
     color: Colors.text.primary,
     fontWeight: '600',
   },
   emptySubtitle: {
-    ...Typography.subhead,
+    fontSize: 15,
     color: Colors.text.tertiary,
     textAlign: 'center',
     paddingHorizontal: 40,

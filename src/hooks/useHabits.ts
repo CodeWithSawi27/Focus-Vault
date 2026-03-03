@@ -54,7 +54,6 @@ export const useHabits = () => {
 
     if (insertError) throw new Error(insertError.message);
 
-    // Schedule notification if reminder time was set
     if (data && payload.reminder_time) {
       await scheduleHabitReminder({
         habitId: data.id,
@@ -84,7 +83,6 @@ export const useHabits = () => {
 
     if (updateError) throw new Error(updateError.message);
 
-    // Handle notification rescheduling
     if (payload.reminder_time !== undefined) {
       if (payload.reminder_time) {
         await scheduleHabitReminder({
@@ -103,7 +101,6 @@ export const useHabits = () => {
   }, [fetchHabits]);
 
   const deleteHabit = useCallback(async (habitId: string) => {
-    // Cancel notification before deleting row
     await cancelHabitReminder(habitId);
 
     const { error: deleteError } = await supabase
@@ -134,8 +131,9 @@ export const useHabits = () => {
       .eq('id', habitId)
       .single();
 
-    const currentLongest = (habitData as Pick<Habit, 'longest_streak' | 'name' | 'reminder_time'> | null)
-      ?.longest_streak ?? 0;
+    const currentLongest =
+      (habitData as Pick<Habit, 'longest_streak' | 'name' | 'reminder_time'> | null)
+        ?.longest_streak ?? 0;
 
     await supabase
       .from('habits')
@@ -145,7 +143,6 @@ export const useHabits = () => {
       })
       .eq('id', habitId);
 
-    // Refresh notification body with updated streak
     if (habitData?.reminder_time) {
       await scheduleHabitReminder({
         habitId,
@@ -184,6 +181,7 @@ export const useHabits = () => {
         .insert({ habit_id: habitId, user_id: user.uid });
     }
 
+    // ✅ Recalculate then refresh in sequence — no race condition
     await recalculateStreak(habitId);
     await fetchHabits();
   }, [user, fetchHabits, recalculateStreak]);

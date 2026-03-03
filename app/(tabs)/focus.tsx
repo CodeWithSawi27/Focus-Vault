@@ -1,9 +1,16 @@
-import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
+import { useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTimer } from '@/src/hooks/useTimer';
+import { useSessionHistory } from '@/src/hooks/useSessionHistory';
+import { useWeeklyGoal } from '@/src/hooks/useWeeklyGoal';
 import { TimerRing } from '@/src/components/timer/TimerRing';
 import { TimerControls } from '@/src/components/timer/TimerControls';
 import { TimerPresets } from '@/src/components/timer/TimerPresets';
+import { SessionCategoryPicker } from '@/src/components/timer/SessionCategoryPicker';
+import { SessionNotesModal } from '@/src/components/timer/SessionNotesModal';
+import { WeeklyGoalCard } from '@/src/components/timer/WeeklyGoalCard';
+import { SessionHistoryList } from '@/src/components/timer/SessionHistoryList';
 import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
 import { Layout, Spacing } from '@/src/constants/spacing';
 
@@ -14,20 +21,44 @@ const SESSION_TIPS = [
   'Take a 5 minute break after each session.',
   'Close unnecessary browser tabs before starting.',
 ];
-
 const getTip = () => SESSION_TIPS[new Date().getMinutes() % SESSION_TIPS.length];
 
 export default function TimerScreen() {
   const {
     duration, remaining, progress, status,
     pulseAnim, PRESETS,
+    category, setCategory,
     start, pause, resume, stop,
+    saveSessionNotes,
     selectPreset, setCustomDuration,
   } = useTimer();
+
+  const { sessions, loading: historyLoading, fetchHistory } = useSessionHistory();
+  const {
+    goalMinutes, completedMinutes, progress: goalProgress,
+    fetchGoalData, updateGoal,
+  } = useWeeklyGoal();
 
   const isActive    = status === 'running' || status === 'paused';
   const isCompleted = status === 'completed';
   const isIdle      = status === 'idle';
+
+  // Load data on mount
+  useEffect(() => {
+    fetchHistory();
+    fetchGoalData();
+  }, [fetchHistory, fetchGoalData]);
+
+  // Refresh after session saved
+  const handleSaveNotes = useCallback(async (notes: string) => {
+    await saveSessionNotes(notes);
+    fetchHistory();
+    fetchGoalData();
+  }, [saveSessionNotes, fetchHistory, fetchGoalData]);
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([fetchHistory(), fetchGoalData()]);
+  }, [fetchHistory, fetchGoalData]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -36,6 +67,15 @@ export default function TimerScreen() {
         showsVerticalScrollIndicator={false}
         scrollEnabled={isIdle || isCompleted}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          isIdle ? (
+            <RefreshControl
+              refreshing={historyLoading}
+              onRefresh={handleRefresh}
+              tintColor={Colors.text.tertiary}
+            />
+          ) : undefined
+        }
       >
         {/* Header */}
         <View style={styles.header}>
@@ -43,7 +83,7 @@ export default function TimerScreen() {
           <Text style={styles.subtitle}>
             {isActive    ? 'Stay focused — you\'re doing great'   :
              isCompleted ? 'Session complete — take a break'       :
-                           'Set a duration and begin your session'}
+                           'Choose a category and begin'}
           </Text>
         </View>
 
@@ -57,18 +97,27 @@ export default function TimerScreen() {
           />
         </View>
 
-        {/* Presets — only idle */}
+        {/* ── IDLE STATE ── */}
         {isIdle && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Duration</Text>
-            <TimerPresets
-              presets={PRESETS}
-              currentDuration={duration}
-              disabled={isActive}
-              onSelect={selectPreset}
-              onCustom={setCustomDuration}
+          <>
+            {/* Category picker */}
+            <SessionCategoryPicker
+              selected={category}
+              onSelect={setCategory}
             />
-          </View>
+
+            {/* Presets */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Duration</Text>
+              <TimerPresets
+                presets={PRESETS}
+                currentDuration={duration}
+                disabled={false}
+                onSelect={selectPreset}
+                onCustom={setCustomDuration}
+              />
+            </View>
+          </>
         )}
 
         {/* Controls */}
@@ -82,21 +131,11 @@ export default function TimerScreen() {
           />
         </View>
 
-        {/* Tip card — only idle */}
-        {isIdle && (
-          <View style={styles.tipCard}>
-            <Text style={styles.tipLabel}>Tip</Text>
-            <Text style={styles.tipText}>{getTip()}</Text>
-          </View>
-        )}
-
-        {/* Session stats while active */}
+        {/* Stats row — running/paused */}
         {isActive && (
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {Math.floor(duration / 60)}m
-              </Text>
+              <Text style={styles.statValue}>{Math.floor(duration / 60)}m</Text>
               <Text style={styles.statLabel}>Target</Text>
             </View>
             <View style={styles.statDivider} />
@@ -108,25 +147,45 @@ export default function TimerScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {Math.round(progress * 100)}%
-              </Text>
+              <Text style={styles.statValue}>{Math.round(progress * 100)}%</Text>
               <Text style={styles.statLabel}>Complete</Text>
             </View>
           </View>
         )}
 
-        {/* Completion card */}
-        {isCompleted && (
-          <View style={styles.completedCard}>
-            <Text style={styles.completedTitle}>Session saved</Text>
-            <Text style={styles.completedSub}>
-              {Math.floor(duration / 60)} minutes of focused work logged.
-              Your streak is building — take a short break.
-            </Text>
-          </View>
+        {/* ── IDLE — cards below fold ── */}
+        {isIdle && (
+          <>
+            {/* Weekly goal */}
+            <WeeklyGoalCard
+              goalMinutes={goalMinutes}
+              completedMinutes={completedMinutes}
+              progress={goalProgress}
+              onUpdateGoal={updateGoal}
+            />
+
+            {/* Tip card */}
+            <View style={styles.tipCard}>
+              <Text style={styles.tipLabel}>Tip</Text>
+              <Text style={styles.tipText}>{getTip()}</Text>
+            </View>
+
+            {/* Session history */}
+            <SessionHistoryList
+              sessions={sessions}
+              onViewAll={() => {}}
+            />
+          </>
         )}
       </ScrollView>
+
+      {/* Session notes modal — shown on completion */}
+      <SessionNotesModal
+        visible={isCompleted}
+        durationSeconds={duration}
+        category={category}
+        onSave={handleSaveNotes}
+      />
     </SafeAreaView>
   );
 }
@@ -141,7 +200,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.md,
     paddingBottom: 48,
-    gap: Spacing.xl,
+    gap: Spacing.lg,
     alignItems: 'center',
   },
   header: {
@@ -161,7 +220,6 @@ const styles = StyleSheet.create({
   ringContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
   },
   section: {
     alignSelf: 'stretch',
@@ -174,32 +232,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontWeight: '600',
+    alignSelf: 'flex-start',
   },
   controls: {
     alignSelf: 'stretch',
     alignItems: 'center',
-  },
-  tipCard: {
-    alignSelf: 'stretch',
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.07)',
-    gap: 4,
-    ...Shadow.sm,
-  },
-  tipLabel: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: '600',
-  },
-  tipText: {
-    ...Typography.callout,
-    color: Colors.text.secondary,
-    lineHeight: 22,
   },
   statsRow: {
     alignSelf: 'stretch',
@@ -233,24 +270,26 @@ const styles = StyleSheet.create({
     width: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(0,0,0,0.08)',
   },
-  completedCard: {
+  tipCard: {
     alignSelf: 'stretch',
-    backgroundColor: Colors.accent.greenMuted,
+    backgroundColor: '#FFFFFF',
     borderRadius: Radius.lg,
     padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(37, 103, 30, 0.18)',
-    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.07)',
+    gap: 4,
+    ...Shadow.sm,
   },
-  completedTitle: {
-    ...Typography.headline,
-    color: Colors.accent.green,
+  tipLabel: {
+    ...Typography.caption,
+    color: Colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     fontWeight: '600',
   },
-  completedSub: {
-    ...Typography.subhead,
-    color: Colors.accent.green,
-    opacity: 0.85,
-    lineHeight: 20,
+  tipText: {
+    ...Typography.callout,
+    color: Colors.text.secondary,
+    lineHeight: 22,
   },
 });

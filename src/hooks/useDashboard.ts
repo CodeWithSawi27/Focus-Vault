@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { supabase } from '@/src/services/supabase';
 import { useAuthStore } from '@/src/store/authStore';
 import type { Habit } from '@/src/types';
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
 
 interface TodayStats {
   habitsCompleted: number;
@@ -12,9 +15,26 @@ interface TodayStats {
   sessionsThisWeek: number;
 }
 
-interface LastSession {
+export interface LastSession {
   duration: number;
   started_at: string;
+  category: string | null;
+  notes: string | null;
+}
+
+export interface WeeklySummary {
+  thisWeekMinutes: number;
+  lastWeekMinutes: number;
+  thisWeekSessions: number;
+  lastWeekSessions: number;
+  thisWeekHabitsCompleted: number;
+  lastWeekHabitsCompleted: number;
+}
+
+export interface NextReminder {
+  title: string;
+  body: string;
+  nextFireDate: Date;
 }
 
 interface DashboardData {
@@ -25,75 +45,138 @@ interface DashboardData {
   todayStats: TodayStats;
   lastSession: LastSession | null;
   longestStreak: number;
+  weeklySummary: WeeklySummary;
+  nextReminder: NextReminder | null;
   loading: boolean;
   toggleHabit: (habitId: string) => Promise<void>;
   refresh: () => void;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 const getGreeting = (): string => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
+  const h = new Date().getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
   return 'Good Evening';
 };
 
-const getFormattedDate = (): string => {
-  return new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
+const getFormattedDate = (): string =>
+  new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric',
   });
+
+const getTodayKey  = (): string => new Date().toISOString().split('T')[0];
+
+const getTodayStart = (): string => {
+  const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString();
 };
-
-const getTodayKey = (): string =>
-  new Date().toISOString().split('T')[0];
-
+const getTodayEnd = (): string => {
+  const d = new Date(); d.setHours(23, 59, 59, 999); return d.toISOString();
+};
 const getWeekStart = (): string => {
   const d = new Date();
   d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
 };
-
-const getTodayStart = (): string => {
+const getLastWeekStart = (): string => {
   const d = new Date();
+  d.setDate(d.getDate() - d.getDay() - 7);
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
 };
+const getLastWeekEnd = (): string => getWeekStart();
 
-const getTodayEnd = (): string => {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d.toISOString();
-};
-
-// Determine if a habit should appear today based on frequency
 const isHabitScheduledToday = (habit: Habit): boolean => {
   if (habit.frequency === 'daily') return true;
-  // Weekly habits show on Monday
   if (habit.frequency === 'weekly') return new Date().getDay() === 1;
   return true;
 };
 
+// Compute next fire date for a scheduled notification trigger
+const getNextFireDate = (trigger: any): Date | null => {
+  if (!trigger) return null;
+  try {
+    // Daily trigger: { hour, minute }
+    if (trigger.hour !== undefined && trigger.minute !== undefined) {
+      const now  = new Date();
+      const next = new Date();
+      next.setHours(trigger.hour, trigger.minute, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      return next;
+    }
+    // Date-based trigger
+    if (trigger.value)  return new Date(trigger.value);
+    if (trigger.date)   return new Date(trigger.date);
+  } catch { }
+  return null;
+};
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export const useDashboard = (): DashboardData => {
   const { user } = useAuthStore();
 
-  const [habits, setHabits]                 = useState<Habit[]>([]);
-  const [completedIds, setCompletedIds]     = useState<Set<string>>(new Set());
-  const [focusMinutes, setFocusMinutes]     = useState(0);
+  const [habits, setHabits]             = useState<Habit[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [focusMinutes, setFocusMinutes] = useState(0);
   const [sessionsThisWeek, setSessionsThisWeek] = useState(0);
-  const [lastSession, setLastSession]       = useState<LastSession | null>(null);
-  const [loading, setLoading]               = useState(true);
+  const [lastSession, setLastSession]   = useState<LastSession | null>(null);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary>({
+    thisWeekMinutes: 0, lastWeekMinutes: 0,
+    thisWeekSessions: 0, lastWeekSessions: 0,
+    thisWeekHabitsCompleted: 0, lastWeekHabitsCompleted: 0,
+  });
+  const [nextReminder, setNextReminder] = useState<NextReminder | null>(null);
+  const [loading, setLoading]           = useState(true);
 
+  // ─── Fetch next scheduled reminder ────────────────────────────────────────
+  const fetchNextReminder = useCallback(async () => {
+    try {
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      if (!scheduled.length) return;
+
+      const withDates = scheduled
+        .map(n => ({
+          notification: n,
+          nextFireDate: getNextFireDate(n.trigger),
+        }))
+        .filter(x => x.nextFireDate !== null)
+        .sort((a, b) => a.nextFireDate!.getTime() - b.nextFireDate!.getTime());
+
+      if (withDates.length > 0) {
+        const next = withDates[0];
+        setNextReminder({
+          title:        next.notification.content.title ?? 'Habit Reminder',
+          body:         next.notification.content.body  ?? '',
+          nextFireDate: next.nextFireDate!,
+        });
+      }
+    } catch (e) {
+      console.warn('fetchNextReminder error:', e);
+    }
+  }, []);
+
+  // ─── Main fetch ───────────────────────────────────────────────────────────
   const fetchDashboard = useCallback(async () => {
     if (!user) return;
     setLoading(true);
 
-    const todayStart = getTodayStart();
-    const todayEnd   = getTodayEnd();
-    const weekStart  = getWeekStart();
+    const todayStart   = getTodayStart();
+    const todayEnd     = getTodayEnd();
+    const weekStart    = getWeekStart();
+    const lastWkStart  = getLastWeekStart();
+    const lastWkEnd    = getLastWeekEnd();
 
-    const [habitsRes, logsRes, focusRes, lastSessionRes] = await Promise.all([
+    const [
+      habitsRes,
+      logsRes,
+      focusRes,
+      lastSessionRes,
+      lastWeekFocusRes,
+      lastWeekLogsRes,
+    ] = await Promise.all([
       supabase
         .from('habits')
         .select('*')
@@ -107,6 +190,7 @@ export const useDashboard = (): DashboardData => {
         .gte('completed_at', todayStart)
         .lte('completed_at', todayEnd),
 
+      // This week's focus sessions
       supabase
         .from('focus_sessions')
         .select('duration, started_at')
@@ -114,14 +198,32 @@ export const useDashboard = (): DashboardData => {
         .eq('completed', true)
         .gte('started_at', weekStart),
 
+      // Last completed session with category + notes
       supabase
         .from('focus_sessions')
-        .select('duration, started_at')
+        .select('duration, started_at, category, notes')
         .eq('user_id', user.uid)
         .eq('completed', true)
         .order('started_at', { ascending: false })
         .limit(1)
         .single(),
+
+      // Last week's focus sessions
+      supabase
+        .from('focus_sessions')
+        .select('duration')
+        .eq('user_id', user.uid)
+        .eq('completed', true)
+        .gte('started_at', lastWkStart)
+        .lt('started_at', lastWkEnd),
+
+      // Last week's habit logs (count)
+      supabase
+        .from('habit_logs')
+        .select('habit_id')
+        .eq('user_id', user.uid)
+        .gte('completed_at', lastWkStart)
+        .lt('completed_at', lastWkEnd),
     ]);
 
     if (habitsRes.data) setHabits(habitsRes.data as Habit[]);
@@ -130,52 +232,76 @@ export const useDashboard = (): DashboardData => {
       setCompletedIds(new Set(logsRes.data.map(l => l.habit_id)));
     }
 
+    // This week focus
     if (focusRes.data) {
-      const todayKey = getTodayKey();
-      const todayMinutes = focusRes.data
+      const todayKey    = getTodayKey();
+      const todayMins   = focusRes.data
         .filter(s => s.started_at.startsWith(todayKey))
         .reduce((sum, s) => sum + Math.floor(s.duration / 60), 0);
-
-      setFocusMinutes(todayMinutes);
+      const weekMins    = focusRes.data.reduce(
+        (sum, s) => sum + Math.floor(s.duration / 60), 0
+      );
+      setFocusMinutes(todayMins);
       setSessionsThisWeek(focusRes.data.length);
+
+      // Weekly summary — this week
+      const lastWkMins = (lastWeekFocusRes.data ?? []).reduce(
+        (sum, s) => sum + Math.floor(s.duration / 60), 0
+      );
+      setWeeklySummary(prev => ({
+        ...prev,
+        thisWeekMinutes:        weekMins,
+        thisWeekSessions:       focusRes.data!.length,
+        lastWeekMinutes:        lastWkMins,
+        lastWeekSessions:       lastWeekFocusRes.data?.length ?? 0,
+        lastWeekHabitsCompleted: lastWeekLogsRes.data?.length ?? 0,
+      }));
     }
 
     if (lastSessionRes.data) {
-      setLastSession(lastSessionRes.data);
+      setLastSession(lastSessionRes.data as LastSession);
     }
 
+    await fetchNextReminder();
     setLoading(false);
-  }, [user]);
+  }, [user, fetchNextReminder]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // Optimistic toggle
+  // ─── Optimistic toggle ────────────────────────────────────────────────────
   const toggleHabit = useCallback(async (habitId: string) => {
     if (!user) return;
-
     const wasCompleted = completedIds.has(habitId);
 
-    // Optimistic update
     setCompletedIds(prev => {
       const next = new Set(prev);
       wasCompleted ? next.delete(habitId) : next.add(habitId);
       return next;
     });
 
+    // Update this-week habit count optimistically
+    setWeeklySummary(prev => ({
+      ...prev,
+      thisWeekHabitsCompleted: wasCompleted
+        ? Math.max(0, prev.thisWeekHabitsCompleted - 1)
+        : prev.thisWeekHabitsCompleted + 1,
+    }));
+
     if (wasCompleted) {
-      const todayStart = getTodayStart();
-      const todayEnd   = getTodayEnd();
       const { error } = await supabase
         .from('habit_logs')
         .delete()
         .eq('habit_id', habitId)
         .eq('user_id', user.uid)
-        .gte('completed_at', todayStart)
-        .lte('completed_at', todayEnd);
+        .gte('completed_at', getTodayStart())
+        .lte('completed_at', getTodayEnd());
 
       if (error) {
-        // Revert
         setCompletedIds(prev => { const n = new Set(prev); n.add(habitId); return n; });
+        setWeeklySummary(prev => ({
+          ...prev,
+          thisWeekHabitsCompleted: prev.thisWeekHabitsCompleted + 1,
+        }));
         Alert.alert('Error', 'Could not update habit. Try again.');
       }
     } else {
@@ -184,15 +310,17 @@ export const useDashboard = (): DashboardData => {
         .insert({ habit_id: habitId, user_id: user.uid });
 
       if (error) {
-        // Revert
         setCompletedIds(prev => { const n = new Set(prev); n.delete(habitId); return n; });
+        setWeeklySummary(prev => ({
+          ...prev,
+          thisWeekHabitsCompleted: Math.max(0, prev.thisWeekHabitsCompleted - 1),
+        }));
         Alert.alert('Error', 'Could not update habit. Try again.');
       }
     }
   }, [user, completedIds]);
 
   // ─── Derived ──────────────────────────────────────────────────────────────
-
   const habitsToday = useMemo(
     () => habits.filter(isHabitScheduledToday),
     [habits]
@@ -204,8 +332,8 @@ export const useDashboard = (): DashboardData => {
   );
 
   const todayStats = useMemo<TodayStats>(() => ({
-    habitsCompleted: habitsToday.filter(h => completedIds.has(h.id)).length,
-    totalHabits: habitsToday.length,
+    habitsCompleted:   habitsToday.filter(h => completedIds.has(h.id)).length,
+    totalHabits:       habitsToday.length,
     longestStreak,
     focusMinutesToday: focusMinutes,
     sessionsThisWeek,
@@ -219,6 +347,8 @@ export const useDashboard = (): DashboardData => {
     todayStats,
     lastSession,
     longestStreak,
+    weeklySummary,
+    nextReminder,
     loading,
     toggleHabit,
     refresh: fetchDashboard,

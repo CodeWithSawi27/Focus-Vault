@@ -1,25 +1,47 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { Colors, Typography, Shadow } from '@/src/constants/theme';
 
 interface ProfileAvatarProps {
   displayName: string | null;
   email: string | null;
+  avatarBase64?: string | null; // ✅ NEW
 }
 
-export const ProfileAvatar = ({ displayName, email }: ProfileAvatarProps) => {
+export const ProfileAvatar = ({
+  displayName,
+  email,
+  avatarBase64,
+}: ProfileAvatarProps) => {
   const initials = displayName
-    ? displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    ? displayName
+        .split(' ')
+        .filter(Boolean)
+        .map(w => w[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
     : (email?.[0] ?? '?').toUpperCase();
-
-  const firstName = displayName?.split(' ')[0] ?? 'User';
 
   return (
     <View style={styles.container}>
-      <View style={styles.avatar}>
-        <Text style={styles.initials}>{initials}</Text>
+      <View style={styles.avatarWrap}>
+        {avatarBase64 ? (
+          // ✅ Show photo if available
+          <Image
+            source={{ uri: avatarBase64 }}
+            style={styles.avatarImage}
+          />
+        ) : (
+          // Fallback to initials
+          <View style={styles.avatarInitials}>
+            <Text style={styles.initials}>{initials}</Text>
+          </View>
+        )}
       </View>
+
       <Text style={styles.name}>{displayName ?? 'User'}</Text>
       <Text style={styles.email}>{email}</Text>
+
       <View style={styles.badge}>
         <Text style={styles.badgeText}>FocusVault Member</Text>
       </View>
@@ -33,15 +55,27 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
   },
-  avatar: {
+  avatarWrap: {
     width: 80,
     height: 80,
     borderRadius: 40,
+    marginBottom: 4,
+    ...Shadow.md,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  avatarInitials: {
+    width: '100%',
+    height: '100%',
     backgroundColor: Colors.text.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
-    ...Shadow.md,
   },
   initials: {
     fontSize: 28,

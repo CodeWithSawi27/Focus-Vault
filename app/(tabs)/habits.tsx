@@ -1,13 +1,13 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert,
+  TouchableOpacity, RefreshControl, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHabits, CreateHabitPayload } from '@/src/hooks/useHabits';
 import { HabitList } from '@/src/components/habits/HabitList';
 import { AddHabitModal } from '@/src/components/habits/AddHabitModal';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
+import { Colors, Typography, Shadow } from '@/src/constants/theme';
 import { Layout, Spacing } from '@/src/constants/spacing';
 import type { Habit } from '@/src/types';
 import { supabase } from '@/src/services/supabase';
@@ -18,13 +18,20 @@ export default function HabitsScreen() {
     habits, loading,
     createHabit, updateHabit,
     deleteHabit, toggleHabitCompletion,
+    fetchHabits,
   } = useHabits();
 
   const { user } = useAuthStore();
-  const [modalVisible, setModalVisible]   = useState(false);
-  const [editingHabit, setEditingHabit]   = useState<Habit | null>(null);
-  const [completedTodayIds, setCompletedTodayIds] = useState<string[]>([]);
 
+  const [modalVisible, setModalVisible]           = useState(false);
+  const [editingHabit, setEditingHabit]           = useState<Habit | null>(null);
+  const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
+  const [togglingIds, setTogglingIds]             = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds]             = useState<Set<string>>(new Set());
+  const [scrollEnabled, setScrollEnabled]         = useState(true);
+  const [refreshing, setRefreshing]               = useState(false);
+
+  // ─── Fetch today completions ──────────────────────────────────────────────
   const fetchTodayCompletions = useCallback(async () => {
     if (!user) return;
     const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -37,10 +44,94 @@ export default function HabitsScreen() {
       .gte('completed_at', start.toISOString())
       .lte('completed_at', end.toISOString());
 
-    if (data) setCompletedTodayIds(data.map(l => l.habit_id));
+    if (data) {
+      setCompletedTodayIds(new Set(data.map(l => l.habit_id)));
+    }
   }, [user]);
 
   useEffect(() => { fetchTodayCompletions(); }, [fetchTodayCompletions]);
+
+  // ─── Pull to refresh ──────────────────────────────────────────────────────
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchHabits(), fetchTodayCompletions()]);
+    setRefreshing(false);
+  }, [fetchHabits, fetchTodayCompletions]);
+
+  // ─── Optimistic toggle ────────────────────────────────────────────────────
+  const handleToggle = useCallback(async (habitId: string) => {
+    const wasCompleted = completedTodayIds.has(habitId);
+
+    // 1. Instant UI update
+    setCompletedTodayIds(prev => {
+      const next = new Set(prev);
+      wasCompleted ? next.delete(habitId) : next.add(habitId);
+      return next;
+    });
+
+    // 2. Show row spinner
+    setTogglingIds(prev => new Set(prev).add(habitId));
+
+    try {
+      await toggleHabitCompletion(habitId);
+    } catch {
+      // Revert on failure
+      setCompletedTodayIds(prev => {
+        const next = new Set(prev);
+        wasCompleted ? next.add(habitId) : next.delete(habitId);
+        return next;
+      });
+      Alert.alert('Error', 'Could not update habit. Please try again.');
+    } finally {
+      setTogglingIds(prev => {
+        const next = new Set(prev);
+        next.delete(habitId);
+        return next;
+      });
+    }
+  }, [completedTodayIds, toggleHabitCompletion]);
+
+  // ─── Optimistic delete ────────────────────────────────────────────────────
+  const handleDelete = useCallback((habitId: string) => {
+    Alert.alert(
+      'Delete Habit',
+      'This will delete the habit and all its history. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Show spinner on row
+            setDeletingIds(prev => new Set(prev).add(habitId));
+            try {
+              await deleteHabit(habitId);
+              // Remove from completed set too
+              setCompletedTodayIds(prev => {
+                const next = new Set(prev);
+                next.delete(habitId);
+                return next;
+              });
+            } catch {
+              Alert.alert('Error', 'Could not delete habit. Please try again.');
+            } finally {
+              setDeletingIds(prev => {
+                const next = new Set(prev);
+                next.delete(habitId);
+                return next;
+              });
+            }
+          },
+        },
+      ]
+    );
+  }, [deleteHabit]);
+
+  // ─── Edit ─────────────────────────────────────────────────────────────────
+  const handleEdit = useCallback((habit: Habit) => {
+    setEditingHabit(habit);
+    setModalVisible(true);
+  }, []);
 
   const handleSubmit = useCallback(async (payload: CreateHabitPayload) => {
     if (editingHabit) {
@@ -51,42 +142,23 @@ export default function HabitsScreen() {
     setEditingHabit(null);
   }, [editingHabit, createHabit, updateHabit]);
 
-  const handleEdit = useCallback((habit: Habit) => {
-    setEditingHabit(habit);
-    setModalVisible(true);
-  }, []);
-
-  const handleDelete = useCallback((habitId: string) => {
-    Alert.alert(
-      'Delete Habit',
-      'This will delete the habit and all its history. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteHabit(habitId),
-        },
-      ]
-    );
-  }, [deleteHabit]);
-
-  const handleToggle = useCallback(async (habitId: string) => {
-    await toggleHabitCompletion(habitId);
-    await fetchTodayCompletions();
-  }, [toggleHabitCompletion, fetchTodayCompletions]);
-
   const handleOpenCreate = useCallback(() => {
     setEditingHabit(null);
     setModalVisible(true);
   }, []);
 
-  const completedCount = completedTodayIds.length;
-  const totalCount = habits.length;
+  const handleCloseModal = useCallback(() => {
+    setModalVisible(false);
+    setEditingHabit(null);
+  }, []);
+
+  const completedCount = completedTodayIds.size;
+  const totalCount     = habits.length;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.container}>
+
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -106,23 +178,34 @@ export default function HabitsScreen() {
 
         {/* List */}
         <ScrollView
+          scrollEnabled={scrollEnabled}
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.text.tertiary}
+            />
+          }
         >
           <HabitList
             habits={habits}
             completedTodayIds={completedTodayIds}
-            loading={loading}
+            togglingIds={togglingIds}
+            deletingIds={deletingIds}
+            loading={loading && !refreshing}
             onToggle={handleToggle}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            setScrollEnabled={setScrollEnabled}
           />
         </ScrollView>
       </View>
 
       <AddHabitModal
         visible={modalVisible}
-        onClose={() => { setModalVisible(false); setEditingHabit(null); }}
+        onClose={handleCloseModal}
         onSubmit={handleSubmit}
         editingHabit={editingHabit}
       />
@@ -159,14 +242,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.text.primary,
     justifyContent: 'center',
     alignItems: 'center',
     ...Shadow.md,
   },
   addButtonText: {
     fontSize: 24,
-    color: '#fff',
+    color: '#FFFFFF',
     lineHeight: 28,
   },
   scroll: {

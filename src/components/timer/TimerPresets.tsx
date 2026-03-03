@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, Keyboard,
+  TextInput, Keyboard, Animated,
 } from 'react-native';
-import { Pencil, Check } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { Pencil, Check, Star } from 'lucide-react-native';
 import { Colors, Typography, Radius } from '@/src/constants/theme';
 
 interface Preset {
@@ -26,17 +27,44 @@ export const TimerPresets = ({
   onSelect,
   onCustom,
 }: TimerPresetsProps) => {
-  const [customMode, setCustomMode]   = useState(false);
-  const [customInput, setCustomInput] = useState('');
+  const [customMode, setCustomMode]     = useState(false);
+  const [customInput, setCustomInput]   = useState('');
+  const [defaultPreset, setDefaultPreset] = useState<number>(presets[0].seconds);
+
+  const scaleAnims = useRef(
+    presets.reduce((acc, p) => {
+      acc[p.seconds] = new Animated.Value(1);
+      return acc;
+    }, {} as Record<number, Animated.Value>)
+  ).current;
 
   const presetSeconds = presets.map(p => p.seconds);
   const isCustomActive = !presetSeconds.includes(currentDuration);
 
+  const handleLongPress = useCallback((seconds: number, label: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setDefaultPreset(seconds);
+    onSelect(seconds);
+
+    // Bounce animation
+    Animated.sequence([
+      Animated.timing(scaleAnims[seconds], {
+        toValue: 1.15,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnims[seconds], {
+        toValue: 1,
+        useNativeDriver: true,
+        damping: 10,
+        stiffness: 200,
+      }),
+    ]).start();
+  }, [onSelect, scaleAnims]);
+
   const handleCustomConfirm = () => {
     const mins = parseInt(customInput, 10);
-    if (!isNaN(mins) && mins > 0) {
-      onCustom(mins);
-    }
+    if (!isNaN(mins) && mins > 0) onCustom(mins);
     setCustomMode(false);
     setCustomInput('');
     Keyboard.dismiss();
@@ -46,23 +74,39 @@ export const TimerPresets = ({
     <View style={styles.wrapper}>
       <View style={styles.chips}>
         {presets.map((preset) => {
-          const active = preset.seconds === currentDuration && !isCustomActive;
+          const active     = preset.seconds === currentDuration && !isCustomActive;
+          const isDefault  = preset.seconds === defaultPreset;
+
           return (
-            <TouchableOpacity
+            <Animated.View
               key={preset.seconds}
-              onPress={() => { onSelect(preset.seconds); setCustomMode(false); }}
-              disabled={disabled}
-              activeOpacity={0.7}
-              style={[
-                styles.chip,
-                active && styles.chipActive,
-                disabled && styles.chipDisabled,
-              ]}
+              style={{ transform: [{ scale: scaleAnims[preset.seconds] }] }}
             >
-              <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
-                {preset.label}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { onSelect(preset.seconds); setCustomMode(false); }}
+                onLongPress={() => handleLongPress(preset.seconds, preset.label)}
+                delayLongPress={400}
+                disabled={disabled}
+                activeOpacity={0.7}
+                style={[
+                  styles.chip,
+                  active && styles.chipActive,
+                  disabled && styles.chipDisabled,
+                ]}
+              >
+                {isDefault && (
+                  <Star
+                    size={10}
+                    color={active ? '#FFFFFF' : Colors.accent.orange}
+                    fill={active ? '#FFFFFF' : Colors.accent.orange}
+                    strokeWidth={2}
+                  />
+                )}
+                <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
+                  {preset.label}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
           );
         })}
 
@@ -90,6 +134,9 @@ export const TimerPresets = ({
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Long press hint */}
+      <Text style={styles.hint}>Long press to set default</Text>
 
       {/* Custom input row */}
       {customMode && (
@@ -122,7 +169,7 @@ export const TimerPresets = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: 12,
+    gap: 8,
     alignItems: 'center',
   },
   chips: {
@@ -157,6 +204,11 @@ const styles = StyleSheet.create({
   chipLabelActive: {
     color: Colors.text.inverse,
     fontWeight: '600',
+  },
+  hint: {
+    ...Typography.caption,
+    color: Colors.text.tertiary,
+    letterSpacing: 0.3,
   },
   customRow: {
     flexDirection: 'row',

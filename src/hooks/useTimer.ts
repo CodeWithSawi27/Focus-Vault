@@ -1,10 +1,11 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { AppState, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { useTimerStore } from '@/src/store/timerStore';
 import { supabase } from '@/src/services/supabase';
 import { useAuthStore } from '@/src/store/authStore';
+import type { SessionCategoryId } from '@/src/constants/categories';
 
 export const PRESETS = [
   { label: '25 min', seconds: 25 * 60 },
@@ -21,13 +22,16 @@ export const useTimer = () => {
     setDuration, setElapsed, setStatus, reset,
   } = useTimerStore();
 
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const appStateRef  = useRef(AppState.currentState);
-  const pulseAnim    = useRef(new Animated.Value(1)).current;
-  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-  const soundRef     = useRef<Audio.Sound | null>(null);
+  const [category, setCategory] = useState<SessionCategoryId | null>(null);
+
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef   = useRef<number | null>(null);
+  const sessionIdRef   = useRef<string | null>(null);
+  const pauseCountRef  = useRef(0);
+  const appStateRef    = useRef(AppState.currentState);
+  const pulseAnim      = useRef(new Animated.Value(1)).current;
+  const pulseLoopRef   = useRef<Animated.CompositeAnimation | null>(null);
+  const soundRef       = useRef<Audio.Sound | null>(null);
 
   const statusRef = useRef(status);
   useEffect(() => { statusRef.current = status; }, [status]);
@@ -36,7 +40,6 @@ export const useTimer = () => {
   const progress  = duration > 0 ? elapsed / duration : 0;
 
   // ─── Audio ────────────────────────────────────────────────────────────────
-
   const playCompletionSound = useCallback(async () => {
     try {
       await Audio.setAudioModeAsync({
@@ -58,29 +61,17 @@ export const useTimer = () => {
       try {
         await soundRef.current.stopAsync();
         await soundRef.current.unloadAsync();
-      } catch (e) {
-        console.warn('Failed to stop timer sound:', e);
-      } finally {
-        soundRef.current = null;
-      }
+      } catch { }
+      finally { soundRef.current = null; }
     }
   }, []);
 
-  // ─── Animation ────────────────────────────────────────────────────────────
-
+  // ─── Pulse animation ──────────────────────────────────────────────────────
   const startPulse = useCallback(() => {
     pulseLoopRef.current = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.012,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseAnim, { toValue: 1.012, duration: 1200, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
       ])
     );
     pulseLoopRef.current.start();
@@ -88,15 +79,10 @@ export const useTimer = () => {
 
   const stopPulse = useCallback(() => {
     pulseLoopRef.current?.stop();
-    Animated.timing(pulseAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
   }, [pulseAnim]);
 
   // ─── Timer core ───────────────────────────────────────────────────────────
-
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -108,19 +94,18 @@ export const useTimer = () => {
     if (!user) return;
     const { data, error } = await supabase
       .from('focus_sessions')
-      .insert({ user_id: user.uid, duration, completed: false })
+      .insert({
+        user_id:  user.uid,
+        duration,
+        category: category ?? null,
+        completed: false,
+      })
       .select('id')
       .single();
 
-    if (error) {
-      console.error('❌ Failed to create focus session:', error.message);
-      return;
-    }
-    if (data) {
-      sessionIdRef.current = data.id;
-      console.log('✅ Focus session created:', data.id);
-    }
-  }, [user, duration]);
+    if (error) { console.error('createSession error:', error.message); return; }
+    if (data) sessionIdRef.current = data.id;
+  }, [user, duration, category]);
 
   const runTick = useCallback((dur: number) => {
     intervalRef.current = setInterval(async () => {
@@ -132,25 +117,20 @@ export const useTimer = () => {
         clearTimer();
         stopPulse();
 
+        // Save completed session (without notes — those come from modal)
         if (sessionIdRef.current) {
-          const { error } = await supabase
+          await supabase
             .from('focus_sessions')
             .update({
-              completed: true,
-              ended_at: new Date().toISOString(),
+              completed:   true,
+              ended_at:    new Date().toISOString(),
+              pause_count: pauseCountRef.current,
             })
             .eq('id', sessionIdRef.current);
-
-          if (error) {
-            console.error('❌ Failed to save completed session:', error.message);
-          } else {
-            console.log('✅ Focus session completed & saved:', sessionIdRef.current);
-          }
         }
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         playCompletionSound();
-
       } else {
         setElapsed(newElapsed);
         if (newElapsed % 300 === 0 && newElapsed > 0) {
@@ -161,8 +141,8 @@ export const useTimer = () => {
   }, [clearTimer, stopPulse, setElapsed, setStatus, playCompletionSound]);
 
   // ─── Public controls ──────────────────────────────────────────────────────
-
   const start = useCallback(async () => {
+    pauseCountRef.current = 0;
     await createSession();
     setStatus('running');
     startTimeRef.current = Date.now() - elapsed * 1000;
@@ -171,11 +151,20 @@ export const useTimer = () => {
     runTick(duration);
   }, [duration, elapsed, createSession, setStatus, startPulse, runTick]);
 
+  // User-initiated pause (increments counter)
   const pause = useCallback(() => {
+    pauseCountRef.current += 1;
     clearTimer();
     stopPulse();
     setStatus('paused');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [clearTimer, stopPulse, setStatus]);
+
+  // Background/auto pause (does NOT increment counter)
+  const pauseBackground = useCallback(() => {
+    clearTimer();
+    stopPulse();
+    setStatus('paused');
   }, [clearTimer, stopPulse, setStatus]);
 
   const resume = useCallback(() => {
@@ -186,28 +175,40 @@ export const useTimer = () => {
     runTick(duration);
   }, [duration, elapsed, setStatus, startPulse, runTick]);
 
+  // Called from SessionNotesModal after completion
+  const saveSessionNotes = useCallback(async (notes: string) => {
+    if (sessionIdRef.current && notes) {
+      await supabase
+        .from('focus_sessions')
+        .update({ notes })
+        .eq('id', sessionIdRef.current);
+    }
+    sessionIdRef.current  = null;
+    pauseCountRef.current = 0;
+    await stopCompletionSound();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    reset();
+  }, [stopCompletionSound, reset]);
+
+  // Manual stop (incomplete session)
   const stop = useCallback(async () => {
     clearTimer();
     stopPulse();
     await stopCompletionSound();
 
     if (statusRef.current !== 'completed' && sessionIdRef.current) {
-      const { error } = await supabase
+      await supabase
         .from('focus_sessions')
         .update({
-          completed: false,
-          ended_at: new Date().toISOString(),
+          completed:   false,
+          ended_at:    new Date().toISOString(),
+          pause_count: pauseCountRef.current,
         })
         .eq('id', sessionIdRef.current);
-
-      if (error) {
-        console.error('❌ Failed to save stopped session:', error.message);
-      } else {
-        console.log('✅ Focus session stopped & saved:', sessionIdRef.current);
-      }
     }
 
-    sessionIdRef.current = null;
+    sessionIdRef.current  = null;
+    pauseCountRef.current = 0;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     reset();
   }, [clearTimer, stopPulse, stopCompletionSound, reset]);
@@ -220,13 +221,11 @@ export const useTimer = () => {
 
   const setCustomDuration = useCallback((minutes: number) => {
     if (status !== 'idle') return;
-    const clamped = Math.max(1, Math.min(180, minutes));
-    setDuration(clamped * 60);
+    setDuration(Math.max(1, Math.min(180, minutes)) * 60);
     Haptics.selectionAsync();
   }, [status, setDuration]);
 
-  // ─── Side effects ─────────────────────────────────────────────────────────
-
+  // ─── AppState — background auto-pause ────────────────────────────────────
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (
@@ -234,12 +233,12 @@ export const useTimer = () => {
         next.match(/inactive|background/) &&
         statusRef.current === 'running'
       ) {
-        pause();
+        pauseBackground();
       }
       appStateRef.current = next;
     });
     return () => sub.remove();
-  }, [pause]);
+  }, [pauseBackground]);
 
   useEffect(() => {
     return () => {
@@ -250,18 +249,11 @@ export const useTimer = () => {
   }, [clearTimer, stopPulse, stopCompletionSound]);
 
   return {
-    duration,
-    elapsed,
-    remaining,
-    progress,
-    status,
-    pulseAnim,
-    start,
-    pause,
-    resume,
-    stop,
-    selectPreset,
-    setCustomDuration,
-    PRESETS,
+    duration, elapsed, remaining, progress, status,
+    pulseAnim, PRESETS,
+    category, setCategory,
+    start, pause, resume, stop,
+    saveSessionNotes,
+    selectPreset, setCustomDuration,
   };
 };

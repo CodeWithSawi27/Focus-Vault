@@ -49,7 +49,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="timer"
+        name="focus"
         options={{
           title: 'Focus',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Timer} focused={focused} />,

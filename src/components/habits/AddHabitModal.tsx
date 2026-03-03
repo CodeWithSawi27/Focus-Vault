@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, Modal, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView,
   Animated, Dimensions, SafeAreaView, Pressable,
+  PanResponder,
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { InputField } from '@/src/components/ui/InputField';
@@ -29,15 +30,68 @@ export const AddHabitModal = ({
   onSubmit,
   editingHabit,
 }: AddHabitModalProps) => {
-  const [name, setName]               = useState('');
-  const [description, setDescription] = useState('');
-  const [frequency, setFrequency]     = useState<'daily' | 'weekly'>('daily');
+  const [name, setName]                 = useState('');
+  const [description, setDescription]   = useState('');
+  const [frequency, setFrequency]       = useState<'daily' | 'weekly'>('daily');
   const [reminderTime, setReminderTime] = useState<string | null>(null);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
 
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const slideAnim  = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const dismissY   = useRef(new Animated.Value(0)).current;
 
+  // ─── Swipe down to dismiss ────────────────────────────────────────────────
+  const dismissPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        g.dy > 10 && Math.abs(g.dy) > Math.abs(g.dx),
+
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) dismissY.setValue(g.dy);
+      },
+
+      onPanResponderRelease: (_, g) => {
+        if (loading) {
+          Animated.spring(dismissY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 200,
+          }).start();
+          return;
+        }
+
+        if (g.dy > 120 || g.vy > 0.5) {
+          Animated.timing(dismissY, {
+            toValue: SCREEN_HEIGHT,
+            duration: 220,
+            useNativeDriver: true,
+          }).start(() => {
+            dismissY.setValue(0);
+            onClose();
+          });
+        } else {
+          Animated.spring(dismissY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 200,
+          }).start();
+        }
+      },
+
+      onPanResponderTerminate: () => {
+        Animated.spring(dismissY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 200,
+        }).start();
+      },
+    })
+  ).current;
+
+  // ─── Slide in/out ─────────────────────────────────────────────────────────
   const handleDismiss = useCallback(() => {
     if (loading) return;
     Animated.timing(slideAnim, {
@@ -61,6 +115,7 @@ export const AddHabitModal = ({
         setReminderTime(null);
       }
       setError('');
+      dismissY.setValue(0);
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
@@ -70,17 +125,13 @@ export const AddHabitModal = ({
     }
   }, [visible, editingHabit, slideAnim]);
 
+  // ─── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
     if (!name.trim()) { setError('Habit name is required.'); return; }
     setError('');
     setLoading(true);
     try {
-      await onSubmit({
-        name,
-        description,
-        frequency,
-        reminder_time: reminderTime,
-      });
+      await onSubmit({ name, description, frequency, reminder_time: reminderTime });
       handleDismiss();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
@@ -99,7 +150,22 @@ export const AddHabitModal = ({
       <View style={styles.root}>
         <Pressable style={styles.overlay} onPress={handleDismiss} />
 
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              transform: [
+                { translateY: slideAnim },
+                { translateY: dismissY },
+              ],
+            },
+          ]}
+        >
+          {/* Drag handle */}
+          <View {...dismissPan.panHandlers} style={styles.dragHandle}>
+            <View style={styles.dragBar} />
+          </View>
+
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardView}
@@ -147,7 +213,6 @@ export const AddHabitModal = ({
                     style={styles.textArea}
                   />
 
-                  {/* Frequency */}
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Frequency</Text>
                     <HabitFrequencyPicker
@@ -156,7 +221,6 @@ export const AddHabitModal = ({
                     />
                   </View>
 
-                  {/* Reminder */}
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Reminder</Text>
                     <ReminderTimePicker
@@ -209,6 +273,18 @@ const styles = StyleSheet.create({
     borderTopRightRadius: Radius.xl,
     maxHeight: SCREEN_HEIGHT * 0.9,
     ...Shadow.lg,
+  },
+  dragHandle: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  dragBar: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.12)',
   },
   keyboardView: {
     width: '100%',

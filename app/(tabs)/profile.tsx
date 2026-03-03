@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View, Text, StyleSheet, ScrollView,
   Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOnboardingStore } from '@/src/store/onboardingStore';
-import { RefreshCw } from 'lucide-react-native';
 import {
-  User, Bell, Shield, Star,
-  LogOut, Info, Mail,
+  RefreshCw, User, Bell, Shield,
+  Star, LogOut, Info, Mail,
 } from 'lucide-react-native';
 import { useProfile } from '@/src/hooks/useProfile';
 import { ProfileAvatar } from '@/src/components/profile/ProfileAvatar';
@@ -19,8 +19,10 @@ import { Colors, Typography } from '@/src/constants/theme';
 import { Layout, Spacing } from '@/src/constants/spacing';
 
 export default function ProfileScreen() {
-  const { user, stats, loading, fetchStats, logout } = useProfile();
+  // ✅ Added avatarBase64 to destructure
+  const { user, stats, loading, fetchStats, logout, avatarBase64 } = useProfile();
   const { reset: resetOnboarding } = useOnboardingStore();
+  const router = useRouter();
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
@@ -30,15 +32,11 @@ export default function ProfileScreen() {
       'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: logout,
-        },
+        { text: 'Sign Out', style: 'destructive', onPress: logout },
       ]
     );
   };
-  
+
   const accountItems: MenuItem[] = [
     {
       id: 'email',
@@ -50,11 +48,10 @@ export default function ProfileScreen() {
     },
     {
       id: 'display_name',
-      label: 'Display Name',
-      sublabel: user?.displayName ?? 'Not set',
+      label: 'Edit Profile',
+      sublabel: 'Name, avatar, password',
       icon: User,
-      onPress: () => {},
-      hideChevron: true,
+      onPress: () => router.push('/edit-profile'),
     },
   ];
 
@@ -87,15 +84,15 @@ export default function ProfileScreen() {
       onPress: () => {},
     },
     {
-  id: 'reset_onboarding',
-  label: 'Reset Onboarding',
-  sublabel: 'Dev only — view onboarding again',
-  icon: RefreshCw,
-  onPress: async () => {
-    await resetOnboarding();
-    Alert.alert('Done', 'Restart the app to see onboarding.');
-  },
-},
+      id: 'reset_onboarding',
+      label: 'Reset Onboarding',
+      sublabel: 'Dev only — view onboarding again',
+      icon: RefreshCw,
+      onPress: async () => {
+        await resetOnboarding();
+        Alert.alert('Done', 'Restart the app to see onboarding.');
+      },
+    },
   ];
 
   const dangerItems: MenuItem[] = [
@@ -127,10 +124,11 @@ export default function ProfileScreen() {
           <Text style={styles.title}>Profile</Text>
         </View>
 
-        {/* Avatar block */}
+        {/* Avatar block — ✅ now receives avatarBase64 */}
         <ProfileAvatar
           displayName={user?.displayName ?? null}
           email={user?.email ?? null}
+          avatarBase64={avatarBase64}
         />
 
         {/* Lifetime stats */}
@@ -145,7 +143,7 @@ export default function ProfileScreen() {
 
         {/* Menu sections */}
         <ProfileMenuSection title="Account" items={accountItems} />
-        <ProfileMenuSection title="App" items={appItems} />
+        <ProfileMenuSection title="App"     items={appItems} />
         <ProfileMenuSection title="Session" items={dangerItems} />
 
         {/* Footer */}

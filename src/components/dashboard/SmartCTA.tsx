@@ -33,7 +33,7 @@ export const SmartCTA = ({ lastSession }: SmartCTAProps) => {
     return (
       <TouchableOpacity
         style={styles.continueCard}
-        onPress={() => router.push('/(tabs)/timer')}
+        onPress={() => router.push('/(tabs)/focus')}
         activeOpacity={0.8}
       >
         {/* Icon */}
@@ -57,7 +57,7 @@ export const SmartCTA = ({ lastSession }: SmartCTAProps) => {
   return (
     <TouchableOpacity
       style={styles.startCard}
-      onPress={() => router.push('/(tabs)/timer')}
+      onPress={() => router.push('/(tabs)/focus')}
       activeOpacity={0.8}
     >
       <View style={styles.startLeft}>

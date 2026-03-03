@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, TouchableOpacity,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -59,8 +59,15 @@ export default function RegisterScreen() {
             <Text style={styles.backText}>Sign In</Text>
           </TouchableOpacity>
 
-          {/* Header */}
+          {/* Logo + header */}
           <View style={styles.header}>
+            <View style={styles.logoWrap}>
+              <Image
+                source={require('@/assets/App-Store-Icon.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={styles.title}>Create account</Text>
             <Text style={styles.subtitle}>
               Start your productivity journey today
@@ -160,8 +167,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   header: {
-    gap: 6,
+    gap: 10,
     paddingTop: Spacing.sm,
+  },
+  logoWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 4,
+    ...Shadow.md,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     ...Typography.largeTitle,

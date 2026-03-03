@@ -1,13 +1,15 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Flame } from 'lucide-react-native';
-import { Colors, Typography, Radius } from '@/src/constants/theme';
+import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
 
 interface DashboardHeaderProps {
   greeting: string;
   formattedDate: string;
   displayName: string | null;
   longestStreak: number;
+  avatarBase64?: string | null; // ✅ NEW
+  
 }
 
 export const DashboardHeader = ({
@@ -15,12 +17,12 @@ export const DashboardHeader = ({
   formattedDate,
   displayName,
   longestStreak,
+  avatarBase64,
 }: DashboardHeaderProps) => {
-  const router  = useRouter();
+  const router    = useRouter();
   const firstName = displayName?.split(' ')[0] ?? 'there';
-
-  const initials = displayName
-    ? displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const initials  = displayName
+    ? displayName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
     : '?';
 
   return (
@@ -34,13 +36,22 @@ export const DashboardHeader = ({
           </Text>
         </View>
 
-        {/* Avatar */}
+        {/* Avatar — shows photo if available, falls back to initials */}
         <TouchableOpacity
-          style={styles.avatar}
+          style={styles.avatarWrap}
           onPress={() => router.push('/(tabs)/profile')}
           activeOpacity={0.8}
         >
-          <Text style={styles.avatarText}>{initials}</Text>
+          {avatarBase64 ? (
+            <Image
+              source={{ uri: avatarBase64 }}
+              style={styles.avatarImage}
+            />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -74,34 +85,52 @@ const styles = StyleSheet.create({
     ...Typography.footnote,
     color: Colors.text.tertiary,
     textTransform: 'uppercase',
+    fontSize: 13,
     letterSpacing: 0.8,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   greeting: {
     ...Typography.title1,
     color: Colors.text.primary,
     letterSpacing: -0.5,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '600',
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginTop: 2,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Shadow.sm,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
     backgroundColor: Colors.text.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 2,
   },
   avatarText: {
     ...Typography.subhead,
     color: Colors.text.inverse,
-    fontWeight: '700',
+    fontWeight: '500',
     letterSpacing: -0.3,
   },
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 2,
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(180, 83, 9, 0.08)',
     borderRadius: Radius.full,
@@ -113,7 +142,7 @@ const styles = StyleSheet.create({
   streakText: {
     ...Typography.caption,
     color: Colors.accent.orange,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
 });
