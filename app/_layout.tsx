@@ -4,16 +4,18 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '@/src/store/authStore';
 import { useAuthListener } from '@/src/hooks/useAuthListener';
 import { useOnboardingStore } from '@/src/store/onboardingStore';
+import { useAppLock } from '@/src/hooks/useAppLock';
+import { LockScreen } from '@/src/components/lock/LockScreen';
 
 export default function RootLayout() {
   useAuthListener();
+  useAppLock(); // ← initializes AppState listener + loads persisted preference
 
-  const { user, initialized }                    = useAuthStore();
-  const { completed, loading: obLoading, init }  = useOnboardingStore();
-  const segments                                  = useSegments();
-  const router                                    = useRouter();
+  const { user, initialized }                   = useAuthStore();
+  const { completed, loading: obLoading, init } = useOnboardingStore();
+  const segments                                 = useSegments();
+  const router                                   = useRouter();
 
-  // Init onboarding store once on mount
   useEffect(() => {
     init();
   }, []);
@@ -49,7 +51,13 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="notifications-settings" />
+        <Stack.Screen name="privacy" />
+        <Stack.Screen name="about" />
+        <Stack.Screen name="security" />
       </Stack>
+      <LockScreen /> {/* ← renders above everything, zIndex 9999 */}
     </>
   );
 }

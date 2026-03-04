@@ -5,6 +5,7 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithCredential,
+  deleteUser,
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { supabase, setSupabaseAuthHeader, clearSupabaseAuthHeader } from './supabase';
@@ -21,7 +22,7 @@ export const registerUser = async (
   const { error } = await supabase.from('users').insert({
     firebase_uid:  credential.user.uid,
     email,
-    display_name: displayName,
+    display_name:  displayName,
   });
   if (error) throw new Error(`Supabase user creation failed: ${error.message}`);
   return credential.user;
@@ -39,29 +40,33 @@ export const logoutUser = async () => {
   clearSupabaseAuthHeader();
 };
 
-// ─── Google Sign-In ───────────────────────────────────────────────────────────
-
 export const signInWithGoogle = async (idToken: string) => {
-  // Exchange Google ID token for Firebase credential
   const googleCredential = GoogleAuthProvider.credential(idToken);
   const result           = await signInWithCredential(auth, googleCredential);
   const user             = result.user;
-
-  const firebaseToken = await user.getIdToken();
+  const firebaseToken    = await user.getIdToken();
   setSupabaseAuthHeader(firebaseToken);
 
-  // Upsert user in Supabase — safe for both new and returning Google users
   const { error } = await supabase
     .from('users')
     .upsert(
-      {
-        firebase_uid:  user.uid,
-        email:         user.email ?? '',
-        display_name:  user.displayName ?? '',
-      },
+      { firebase_uid: user.uid, email: user.email ?? '', display_name: user.displayName ?? '' },
       { onConflict: 'firebase_uid' }
     );
-
   if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
   return user;
+};
+
+// ─── Delete Account ───────────────────────────────────────────────────────────
+// Order matters — delete child rows before parent to avoid FK violations
+export const deleteAccount = async (uid: string): Promise<void> => {
+  await supabase.from('habit_logs').delete().eq('user_id', uid);
+  await supabase.from('focus_sessions').delete().eq('user_id', uid);
+  await supabase.from('habits').delete().eq('user_id', uid);
+  await supabase.from('users').delete().eq('firebase_uid', uid);
+
+  const currentUser = auth.currentUser;
+  if (currentUser) await deleteUser(currentUser);
+
+  clearSupabaseAuthHeader();
 };

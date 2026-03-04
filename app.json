@@ -4,30 +4,23 @@
     "slug": "focus-vault",
     "version": "1.0.0",
     "scheme": "focus-vault",
-    
-    "platforms": [
-      "ios"
-    ],
+    "platforms": ["ios"],
     "orientation": "portrait",
     "icon": "./assets/Expo-app.json-icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/Expo-app.json-splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "bundleIdentifier": "com.momohsawi.focusvault",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio",
-          "audio"
-        ],
+        "UIBackgroundModes": ["audio"],
         "NSUserNotificationsUsageDescription": "FocusVault sends daily habit reminders to keep you consistent.",
         "ITSAppUsesNonExemptEncryption": false
-      },
-      "bundleIdentifier": "com.momohsawi.focusvault"
-      
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -43,7 +36,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow FocusVault to use Face ID to unlock the app."
+        }
+      ]
     ],
     "extra": {
       "router": {},

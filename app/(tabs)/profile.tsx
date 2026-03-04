@@ -8,9 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOnboardingStore } from '@/src/store/onboardingStore';
 import {
   RefreshCw, User, Bell, Shield,
-  Star, LogOut, Info, Mail,
+  Star, LogOut, Info, Mail, Lock,
 } from 'lucide-react-native';
 import { useProfile } from '@/src/hooks/useProfile';
+import { useAppLock } from '@/src/hooks/useAppLock';
 import { ProfileAvatar } from '@/src/components/profile/ProfileAvatar';
 import { ProfileStats } from '@/src/components/profile/ProfileStats';
 import { ProfileMenuSection } from '@/src/components/profile/ProfileMenuSection';
@@ -18,10 +19,12 @@ import type { MenuItem } from '@/src/components/profile/ProfileMenuSection';
 import { Colors, Typography } from '@/src/constants/theme';
 import { Layout, Spacing } from '@/src/constants/spacing';
 
+const APP_VERSION = '1.0.0';
+
 export default function ProfileScreen() {
-  // ✅ Added avatarBase64 to destructure
   const { user, stats, loading, fetchStats, logout, avatarBase64 } = useProfile();
   const { reset: resetOnboarding } = useOnboardingStore();
+  const { isEnabled: appLockEnabled } = useAppLock();
   const router = useRouter();
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
@@ -57,18 +60,25 @@ export default function ProfileScreen() {
 
   const appItems: MenuItem[] = [
     {
+      id: 'security',
+      label: 'Security',
+      sublabel: appLockEnabled ? 'App Lock · On' : 'App Lock · Off',
+      icon: Lock,
+      onPress: () => router.push('/security'),
+    },
+    {
       id: 'notifications',
       label: 'Notifications',
       sublabel: 'Reminders and alerts',
       icon: Bell,
-      onPress: () => {},
+      onPress: () => router.push('/notifications-settings'),
     },
     {
       id: 'privacy',
       label: 'Privacy',
       sublabel: 'Data and permissions',
       icon: Shield,
-      onPress: () => {},
+      onPress: () => router.push('/privacy'),
     },
     {
       id: 'rate',
@@ -79,9 +89,9 @@ export default function ProfileScreen() {
     {
       id: 'about',
       label: 'About',
-      sublabel: 'Version 1.0.0',
+      sublabel: `Version ${APP_VERSION}`,
       icon: Info,
-      onPress: () => {},
+      onPress: () => router.push('/about'),
     },
     {
       id: 'reset_onboarding',
@@ -124,7 +134,7 @@ export default function ProfileScreen() {
           <Text style={styles.title}>Profile</Text>
         </View>
 
-        {/* Avatar block — ✅ now receives avatarBase64 */}
+        {/* Avatar block */}
         <ProfileAvatar
           displayName={user?.displayName ?? null}
           email={user?.email ?? null}
