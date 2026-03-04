@@ -1,22 +1,45 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, TouchableOpacity, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { PrimaryButton } from '@/src/components/ui/PrimaryButton';
-import { InputField } from '@/src/components/ui/InputField';
-import { loginUser } from '@/src/services/authService';
+import { PrimaryButton }      from '@/src/components/ui/PrimaryButton';
+import { InputField }         from '@/src/components/ui/InputField';
+import { GoogleSignInButton } from '@/src/components/ui/GoogleSignInButton';
+import { loginUser }          from '@/src/services/authService';
+import { useGoogleAuth }      from '@/src/hooks/useGoogleAuth';
 import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
 import { Layout, Spacing } from '@/src/constants/spacing';
 
 export default function LoginScreen() {
-  const router = useRouter();
+  const router  = useRouter();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
+
+  const {
+    signIn: googleSignIn,
+    handleGoogleResponse,
+    response: googleResponse,
+    loading: googleLoading,
+    error: googleError,
+    ready: googleReady,
+  } = useGoogleAuth();
+
+  // Handle Google OAuth redirect response
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      handleGoogleResponse();
+    }
+  }, [googleResponse, handleGoogleResponse]);
+
+  // Surface Google errors in the same error box
+  useEffect(() => {
+    if (googleError) setError(googleError);
+  }, [googleError]);
 
   const handleLogin = useCallback(async () => {
     if (!email || !password) { setError('Please fill in all fields.'); return; }
@@ -30,6 +53,8 @@ export default function LoginScreen() {
       setLoading(false);
     }
   }, [email, password]);
+
+  const isLoading = loading || googleLoading;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -68,7 +93,7 @@ export default function LoginScreen() {
               <InputField
                 label="Email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setError(''); }}
                 keyboardType="email-address"
                 placeholder="you@example.com"
                 autoComplete="email"
@@ -76,7 +101,7 @@ export default function LoginScreen() {
               <InputField
                 label="Password"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); setError(''); }}
                 secureTextEntry
                 placeholder="••••••••"
                 autoComplete="password"
@@ -92,9 +117,24 @@ export default function LoginScreen() {
                 label="Sign In"
                 onPress={handleLogin}
                 loading={loading}
+                disabled={isLoading}
                 style={styles.submitBtn}
               />
             </View>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign-In */}
+            <GoogleSignInButton
+              onPress={googleSignIn}
+              loading={googleLoading}
+              disabled={isLoading || !googleReady}
+            />
           </View>
 
           {/* Footer */}
@@ -192,6 +232,21 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: Spacing.xs,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  dividerText: {
+    ...Typography.footnote,
+    color: Colors.text.tertiary,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',

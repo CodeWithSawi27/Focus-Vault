@@ -3,7 +3,8 @@
     "name": "FocusVault",
     "slug": "focus-vault",
     "version": "1.0.0",
-    "scheme": "focusvault",
+    "scheme": "focus-vault",
+    
     "platforms": [
       "ios"
     ],
@@ -18,9 +19,15 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-    "UIBackgroundModes": ["audio"],
-    "NSUserNotificationsUsageDescription": "FocusVault sends daily habit reminders to keep you consistent."
-  }
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
+        ],
+        "NSUserNotificationsUsageDescription": "FocusVault sends daily habit reminders to keep you consistent.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.momohsawi.focusvault"
+      
     },
     "android": {
       "adaptiveIcon": {
@@ -37,6 +44,13 @@
     "plugins": [
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4ebe3bdc-7f04-4c1c-88ef-e5be734fd5c3"
+      }
+    },
+    "owner": "momohsawi"
   }
 }

@@ -1,14 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, TouchableOpacity, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
-import { PrimaryButton } from '@/src/components/ui/PrimaryButton';
-import { InputField } from '@/src/components/ui/InputField';
-import { registerUser } from '@/src/services/authService';
+import { ArrowLeft }          from 'lucide-react-native';
+import { PrimaryButton }      from '@/src/components/ui/PrimaryButton';
+import { InputField }         from '@/src/components/ui/InputField';
+import { GoogleSignInButton } from '@/src/components/ui/GoogleSignInButton';
+import { registerUser }       from '@/src/services/authService';
+import { useGoogleAuth }      from '@/src/hooks/useGoogleAuth';
 import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
 import { Layout, Spacing } from '@/src/constants/spacing';
 
@@ -21,12 +23,31 @@ export default function RegisterScreen() {
   const [error, setError]             = useState('');
   const [loading, setLoading]         = useState(false);
 
+  const {
+    signIn: googleSignIn,
+    handleGoogleResponse,
+    response: googleResponse,
+    loading: googleLoading,
+    error: googleError,
+    ready: googleReady,
+  } = useGoogleAuth();
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      handleGoogleResponse();
+    }
+  }, [googleResponse, handleGoogleResponse]);
+
+  useEffect(() => {
+    if (googleError) setError(googleError);
+  }, [googleError]);
+
   const handleRegister = useCallback(async () => {
     if (!displayName || !email || !password || !confirm) {
       setError('Please fill in all fields.'); return;
     }
     if (password !== confirm) { setError('Passwords do not match.'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (password.length < 6)  { setError('Password must be at least 6 characters.'); return; }
     setError('');
     setLoading(true);
     try {
@@ -37,6 +58,8 @@ export default function RegisterScreen() {
       setLoading(false);
     }
   }, [displayName, email, password, confirm]);
+
+  const isLoading = loading || googleLoading;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -59,7 +82,7 @@ export default function RegisterScreen() {
             <Text style={styles.backText}>Sign In</Text>
           </TouchableOpacity>
 
-          {/* Logo + header */}
+          {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoWrap}>
               <Image
@@ -80,7 +103,7 @@ export default function RegisterScreen() {
               <InputField
                 label="Full Name"
                 value={displayName}
-                onChangeText={setDisplayName}
+                onChangeText={(t) => { setDisplayName(t); setError(''); }}
                 placeholder="Your name"
                 autoCapitalize="words"
                 autoComplete="name"
@@ -88,7 +111,7 @@ export default function RegisterScreen() {
               <InputField
                 label="Email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setError(''); }}
                 keyboardType="email-address"
                 placeholder="you@example.com"
                 autoComplete="email"
@@ -99,7 +122,7 @@ export default function RegisterScreen() {
               <InputField
                 label="Password"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); setError(''); }}
                 secureTextEntry
                 placeholder="Min. 6 characters"
                 autoComplete="new-password"
@@ -107,7 +130,7 @@ export default function RegisterScreen() {
               <InputField
                 label="Confirm Password"
                 value={confirm}
-                onChangeText={setConfirm}
+                onChangeText={(t) => { setConfirm(t); setError(''); }}
                 secureTextEntry
                 placeholder="Repeat password"
                 autoComplete="new-password"
@@ -123,12 +146,28 @@ export default function RegisterScreen() {
                 label="Create Account"
                 onPress={handleRegister}
                 loading={loading}
+                disabled={isLoading}
                 style={styles.submitBtn}
               />
             </View>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign-In */}
+            <GoogleSignInButton
+              onPress={googleSignIn}
+              loading={googleLoading}
+              disabled={isLoading || !googleReady}
+              label="Sign up with Google"
+            />
           </View>
 
-          {/* Terms note */}
+          {/* Terms */}
           <Text style={styles.terms}>
             By creating an account you agree to our{' '}
             <Text style={styles.termsLink}>Terms of Service</Text>
@@ -197,6 +236,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.08)',
+    gap: Spacing.lg,
     ...Shadow.md,
   },
   form: {
@@ -206,6 +246,21 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(0,0,0,0.08)',
     marginVertical: Spacing.xs,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  dividerText: {
+    ...Typography.footnote,
+    color: Colors.text.tertiary,
+    fontWeight: '500',
   },
   errorBox: {
     backgroundColor: Colors.accent.redMuted,
