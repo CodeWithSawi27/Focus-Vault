@@ -1,9 +1,14 @@
+import { useMemo } from "react";
 import {
-  TouchableOpacity, Text, StyleSheet,
-  ActivityIndicator, View,
-} from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  View,
+} from "react-native";
+import Svg, { Path } from "react-native-svg";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
 
 interface GoogleSignInButtonProps {
   onPress: () => void;
@@ -12,7 +17,7 @@ interface GoogleSignInButtonProps {
   label?: string;
 }
 
-// Official Google "G" SVG logo
+// Google "G" logo — colours are brand-mandated, never themed
 const GoogleLogo = ({ size = 20 }: { size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 48 48">
     <Path
@@ -39,20 +44,53 @@ export const GoogleSignInButton = ({
   onPress,
   loading = false,
   disabled = false,
-  label = 'Continue with Google',
+  label = "Continue with Google",
 }: GoogleSignInButtonProps) => {
+  const { colors, isDark } = useTheme();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        btn: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          // Always white in light, near-white elevated surface in dark
+          backgroundColor: isDark ? colors.surfaceStrong : "#FFFFFF",
+          borderRadius: Radius.full,
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          ...Shadow.sm,
+        },
+        btnDisabled: { opacity: 0.45 },
+        inner: { flexDirection: "row", alignItems: "center", gap: 12 },
+        iconWrap: {
+          width: 20,
+          height: 20,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        label: {
+          ...Typography.callout,
+          color: colors.text.primary,
+          fontWeight: "600",
+          letterSpacing: -0.2,
+        },
+      }),
+    [colors, isDark],
+  );
+
   return (
     <TouchableOpacity
-      style={[
-        styles.btn,
-        (disabled || loading) && styles.btnDisabled,
-      ]}
+      style={[styles.btn, (disabled || loading) && styles.btnDisabled]}
       onPress={onPress}
       activeOpacity={0.75}
       disabled={disabled || loading}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={Colors.text.secondary} />
+        <ActivityIndicator size="small" color={colors.text.secondary} />
       ) : (
         <View style={styles.inner}>
           <View style={styles.iconWrap}>
@@ -64,38 +102,3 @@ export const GoogleSignInButton = ({
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.full,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.12)',
-    ...Shadow.sm,
-  },
-  btnDisabled: {
-    opacity: 0.45,
-  },
-  inner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconWrap: {
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  label: {
-    ...Typography.callout,
-    color: Colors.text.primary,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-  },
-});

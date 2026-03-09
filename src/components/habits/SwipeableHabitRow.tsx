@@ -1,18 +1,30 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useMemo } from "react";
 import {
-  View, Text, StyleSheet, PanResponder,
-  Animated, TouchableOpacity, Alert, ActivityIndicator,
-} from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { CheckCircle2, Circle, Trash2, Pencil, Flame } from 'lucide-react-native';
-import { Colors, Typography, Radius } from '@/src/constants/theme';
-import type { Habit } from '@/src/types';
+  View,
+  Text,
+  StyleSheet,
+  PanResponder,
+  Animated,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import * as Haptics from "expo-haptics";
+import {
+  CheckCircle2,
+  Circle,
+  Trash2,
+  Pencil,
+  Flame,
+} from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius } from "@/src/constants/theme";
+import type { Habit } from "@/src/types";
 
 const SWIPE_RIGHT_THRESHOLD = 60;
-const SWIPE_LEFT_PEEK       = 70;
-const SWIPE_LEFT_DELETE     = 200;
-const ACTION_WIDTH          = 72;
-const SNAP_OPEN             = -(ACTION_WIDTH * 2);
+const SWIPE_LEFT_PEEK = 70;
+const SWIPE_LEFT_DELETE = 200;
+const ACTION_WIDTH = 72;
+const SNAP_OPEN = -(ACTION_WIDTH * 2);
 
 interface SwipeableHabitRowProps {
   habit: Habit;
@@ -37,35 +49,31 @@ export const SwipeableHabitRow = ({
   setScrollEnabled,
   showHint = false,
 }: SwipeableHabitRowProps) => {
-  const translateX   = useRef(new Animated.Value(0)).current;
-  const rowOpacity   = useRef(new Animated.Value(1)).current;
+  const { colors } = useTheme();
+
+  const translateX = useRef(new Animated.Value(0)).current;
+  const rowOpacity = useRef(new Animated.Value(1)).current;
   const flashOpacity = useRef(new Animated.Value(0)).current;
   const flashIsGreen = useRef(true);
-  const isOpen       = useRef(false);
+  const isOpen = useRef(false);
   const hasTriggered = useRef(false);
-  const gestureDir   = useRef<'none' | 'h' | 'v'>('none');
+  // ⚠️  Track gesture direction inside a ref so PanResponder callbacks
+  //     (which close over a stale copy of state) always read the latest value.
+  const gestureDir = useRef<"none" | "h" | "v">("none");
 
-  // ─── Fade row when deleting ───────────────────────────────────────────────
+  // ─── Row fade while deleting ──────────────────────────────────────────────
   useEffect(() => {
-    if (isDeleting) {
-      Animated.timing(rowOpacity, {
-        toValue: 0.4,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(rowOpacity, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isDeleting, rowOpacity]);
+    Animated.timing(rowOpacity, {
+      toValue: isDeleting ? 0.4 : 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [isDeleting]);
 
-  // ─── Hint animation on first row ─────────────────────────────────────────
+  // ─── One-time swipe hint on first row ─────────────────────────────────────
   useEffect(() => {
     if (!showHint) return;
-    const timeout = setTimeout(() => {
+    const id = setTimeout(() => {
       Animated.sequence([
         Animated.timing(translateX, {
           toValue: -28,
@@ -79,7 +87,7 @@ export const SwipeableHabitRow = ({
         }),
       ]).start();
     }, 800);
-    return () => clearTimeout(timeout);
+    return () => clearTimeout(id);
   }, [showHint]);
 
   // ─── Snap helpers ─────────────────────────────────────────────────────────
@@ -104,61 +112,70 @@ export const SwipeableHabitRow = ({
     isOpen.current = true;
   }, [translateX]);
 
-  // ─── Flash ────────────────────────────────────────────────────────────────
-  const flash = useCallback((green: boolean, cb?: () => void) => {
-    flashIsGreen.current = green;
-    flashOpacity.setValue(0);
-    Animated.sequence([
-      Animated.timing(flashOpacity, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: false,
-      }),
-      Animated.timing(flashOpacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: false,
-      }),
-    ]).start(() => cb?.());
-  }, [flashOpacity]);
+  // ─── Flash feedback ───────────────────────────────────────────────────────
+  const flash = useCallback(
+    (green: boolean, cb?: () => void) => {
+      flashIsGreen.current = green;
+      flashOpacity.setValue(0);
+      Animated.sequence([
+        Animated.timing(flashOpacity, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: false,
+        }),
+        Animated.timing(flashOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: false,
+        }),
+      ]).start(() => cb?.());
+    },
+    [flashOpacity],
+  );
 
   // ─── PanResponder ─────────────────────────────────────────────────────────
   const panResponder = useRef(
     PanResponder.create({
+      // Never steal the touch start — let taps through cleanly.
       onStartShouldSetPanResponder: () => false,
       onStartShouldSetPanResponderCapture: () => false,
 
+      // If the row is already open, capture any horizontal nudge immediately.
+      onMoveShouldSetPanResponderCapture: (_, g) =>
+        isOpen.current && Math.abs(g.dx) > 4,
+
+      // Decide whether to claim horizontal gestures.
+      // ⚠️  Do NOT call setScrollEnabled here — this predicate fires
+      //     speculatively and the responder may never be granted.
       onMoveShouldSetPanResponder: (_, g) => {
-        if (gestureDir.current === 'v') return false;
-        if (gestureDir.current === 'h') return true;
+        if (gestureDir.current === "v") return false;
+        if (gestureDir.current === "h") return true;
+
         const absDx = Math.abs(g.dx);
         const absDy = Math.abs(g.dy);
+
         if (absDx > 5 && absDx > absDy * 1.5) {
-          gestureDir.current = 'h';
-          setScrollEnabled?.(false);
+          gestureDir.current = "h";
           return true;
         }
-        if (absDy > 8) gestureDir.current = 'v';
+        if (absDy > 8) gestureDir.current = "v";
         return false;
       },
 
-      onMoveShouldSetPanResponderCapture: (_, g) => {
-        if (isOpen.current && Math.abs(g.dx) > 4) return true;
-        return false;
-      },
-
+      // Responder is granted — safe to disable parent scroll NOW.
       onPanResponderGrant: () => {
         hasTriggered.current = false;
-        gestureDir.current   = 'none';
+        gestureDir.current = "none";
         translateX.stopAnimation();
+        setScrollEnabled?.(false); // ← moved here from onMoveShouldSetPanResponder
       },
 
       onPanResponderMove: (_, g) => {
-        const base    = isOpen.current ? SNAP_OPEN : 0;
-        const next    = base + g.dx;
+        const base = isOpen.current ? SNAP_OPEN : 0;
+        const next = base + g.dx;
         const clamped = Math.min(
           isOpen.current ? 4 : SWIPE_RIGHT_THRESHOLD + 20,
-          Math.max(-(SWIPE_LEFT_DELETE + 40), next)
+          Math.max(-(SWIPE_LEFT_DELETE + 40), next),
         );
         translateX.setValue(clamped);
 
@@ -174,12 +191,13 @@ export const SwipeableHabitRow = ({
       },
 
       onPanResponderRelease: (_, g) => {
-        gestureDir.current = 'none';
-        setScrollEnabled?.(true);
+        gestureDir.current = "none";
+        setScrollEnabled?.(true); // always re-enable on release
 
-        const base    = isOpen.current ? SNAP_OPEN : 0;
+        const base = isOpen.current ? SNAP_OPEN : 0;
         const totalDx = base + g.dx;
 
+        // Swipe right → toggle complete
         if (g.dx > SWIPE_RIGHT_THRESHOLD && !isOpen.current) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           flash(true, () => onToggle(habit.id));
@@ -187,6 +205,7 @@ export const SwipeableHabitRow = ({
           return;
         }
 
+        // Swipe far left → delete
         if (totalDx < -SWIPE_LEFT_DELETE) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           flash(false, () => onDelete(habit.id));
@@ -194,12 +213,14 @@ export const SwipeableHabitRow = ({
           return;
         }
 
+        // Short left swipe → reveal action buttons
         if (g.dx < -SWIPE_LEFT_PEEK && !isOpen.current) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           snapOpen();
           return;
         }
 
+        // Close if already open and swiped right
         if (isOpen.current && g.dx > 10) {
           snapClosed();
           return;
@@ -208,56 +229,161 @@ export const SwipeableHabitRow = ({
         snapClosed();
       },
 
+      // If another responder steals the gesture, always restore scroll.
       onPanResponderTerminate: () => {
-        gestureDir.current = 'none';
+        gestureDir.current = "none";
         setScrollEnabled?.(true);
         snapClosed();
       },
-    })
+    }),
   ).current;
 
+  // ─── Flash overlay color ──────────────────────────────────────────────────
   const flashBg = flashOpacity.interpolate({
-    inputRange:  [0, 1],
+    inputRange: [0, 1],
     outputRange: [
-      'rgba(0,0,0,0)',
-      flashIsGreen.current
-        ? 'rgba(37,103,30,0.10)'
-        : 'rgba(204,43,43,0.10)',
+      "rgba(0,0,0,0)",
+      flashIsGreen.current ? "rgba(52,199,89,0.12)" : "rgba(255,69,58,0.12)",
     ],
   });
 
+  // ─── All styles inside useMemo so colors are always in sync ───────────────
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        // Wrapper: overflow:hidden clips the sliding row;
+        // actions sit underneath via render order (painted first → lower z).
+        wrapper: {
+          position: "relative",
+          overflow: "hidden",
+          backgroundColor: colors.surfaceStrong, // opaque fallback
+        },
+
+        // ── Action buttons (painted first, revealed by sliding row) ────────────
+        actions: {
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          flexDirection: "row",
+          width: ACTION_WIDTH * 2,
+          // No zIndex override — render order handles layering.
+        },
+        actionBtn: {
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 5,
+        },
+        // ⚠️ Fix: was colors.primary (#F5F5F5 in light = near-white → invisible).
+        //    colors.text.primary gives dark-on-light / light-on-dark correctly.
+        editBtn: { backgroundColor: colors.text.primary },
+        deleteBtn: { backgroundColor: colors.accent.red },
+        actionLabel: {
+          ...Typography.caption,
+          color: colors.text.inverse,
+          fontWeight: "600",
+          letterSpacing: 0.3,
+        },
+
+        // ── Sliding row (painted after actions → sits on top) ──────────────────
+        row: {
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 14,
+          paddingVertical: 14,
+          // Must be fully opaque — any transparency reveals the action buttons
+          // unintentionally before the user swipes.
+          backgroundColor: colors.surfaceStrong,
+          gap: 12,
+          minHeight: 64,
+        },
+
+        checkWrap: {
+          width: 28,
+          height: 28,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        content: { flex: 1, gap: 3 },
+
+        habitName: {
+          ...Typography.callout,
+          color: colors.text.primary,
+          fontWeight: "500",
+        },
+        habitNameDone: {
+          color: colors.text.tertiary,
+          textDecorationLine: "line-through",
+        },
+        habitNameDeleting: {
+          color: colors.text.tertiary,
+        },
+
+        meta: { flexDirection: "row", alignItems: "center", gap: 4 },
+        metaText: { ...Typography.caption, color: colors.text.tertiary },
+        metaDot: { ...Typography.caption, color: colors.text.tertiary },
+
+        doneTag: {
+          backgroundColor: colors.accent.greenMuted,
+          borderRadius: Radius.sm,
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+        },
+        doneTagText: {
+          ...Typography.caption,
+          color: colors.accent.green,
+          fontWeight: "600",
+        },
+
+        swipeHint: { paddingLeft: 2, opacity: 0.18 },
+        swipeHintText: {
+          fontSize: 16,
+          color: colors.text.primary,
+          fontWeight: "300",
+        },
+      }),
+    [colors],
+  );
+
   return (
     <Animated.View style={[styles.wrapper, { opacity: rowOpacity }]}>
-
-      {/* Action buttons */}
+      {/* ── Action buttons — rendered first so row paints on top ── */}
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.actionBtn, styles.editBtn]}
-          onPress={() => { snapClosed(); onEdit(habit); }}
+          onPress={() => {
+            snapClosed();
+            onEdit(habit);
+          }}
           activeOpacity={0.85}
           disabled={isDeleting}
         >
-          <Pencil size={17} color="#FFFFFF" strokeWidth={2} />
+          <Pencil size={17} color={colors.text.inverse} strokeWidth={2} />
           <Text style={styles.actionLabel}>Edit</Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.actionBtn, styles.deleteBtn]}
-          onPress={() => { snapClosed(); onDelete(habit.id); }}
+          onPress={() => {
+            snapClosed();
+            onDelete(habit.id);
+          }}
           activeOpacity={0.85}
           disabled={isDeleting}
         >
           {isDeleting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.text.inverse} />
           ) : (
             <>
-              <Trash2 size={17} color="#FFFFFF" strokeWidth={2} />
+              <Trash2 size={17} color={colors.text.inverse} strokeWidth={2} />
               <Text style={styles.actionLabel}>Delete</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Swipeable row */}
+      {/* ── Sliding row — rendered after actions so it starts on top ── */}
       <Animated.View
         style={[styles.row, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
@@ -271,7 +397,7 @@ export const SwipeableHabitRow = ({
           ]}
         />
 
-        {/* Checkbox — tappable, shows spinner while toggling */}
+        {/* Checkbox */}
         <TouchableOpacity
           style={styles.checkWrap}
           onPress={() => {
@@ -284,22 +410,15 @@ export const SwipeableHabitRow = ({
           disabled={isToggling || isDeleting}
         >
           {isToggling ? (
-            <ActivityIndicator
-              size="small"
-              color={Colors.text.tertiary}
-            />
+            <ActivityIndicator size="small" color={colors.text.tertiary} />
           ) : isCompleted ? (
             <CheckCircle2
               size={24}
-              color={Colors.accent.green}
+              color={colors.accent.green}
               strokeWidth={2}
             />
           ) : (
-            <Circle
-              size={24}
-              color="rgba(0,0,0,0.2)"
-              strokeWidth={1.8}
-            />
+            <Circle size={24} color={colors.border} strokeWidth={1.8} />
           )}
         </TouchableOpacity>
 
@@ -318,13 +437,13 @@ export const SwipeableHabitRow = ({
           <View style={styles.meta}>
             {habit.streak > 0 && (
               <>
-                <Flame size={11} color={Colors.accent.orange} strokeWidth={2} />
+                <Flame size={11} color={colors.accent.orange} strokeWidth={2} />
                 <Text style={styles.metaText}>{habit.streak}d streak</Text>
                 <Text style={styles.metaDot}>·</Text>
               </>
             )}
             <Text style={styles.metaText}>
-              {habit.frequency === 'daily' ? 'Daily' : 'Weekly'}
+              {habit.frequency === "daily" ? "Daily" : "Weekly"}
             </Text>
           </View>
         </View>
@@ -346,101 +465,3 @@ export const SwipeableHabitRow = ({
     </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
-  actions: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    width: ACTION_WIDTH * 2,
-  },
-  actionBtn: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-  },
-  editBtn: {
-    backgroundColor: Colors.text.primary,
-  },
-  deleteBtn: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  actionLabel: {
-    ...Typography.caption,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    gap: 12,
-    minHeight: 64,
-  },
-  checkWrap: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-    gap: 3,
-  },
-  habitName: {
-    ...Typography.callout,
-    color: Colors.text.primary,
-    fontWeight: '500',
-  },
-  habitNameDone: {
-    color: Colors.text.tertiary,
-    textDecorationLine: 'line-through',
-  },
-  habitNameDeleting: {
-    color: Colors.text.tertiary,
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-  },
-  metaDot: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-  },
-  doneTag: {
-    backgroundColor: Colors.accent.greenMuted,
-    borderRadius: Radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  doneTagText: {
-    ...Typography.caption,
-    color: Colors.accent.green,
-    fontWeight: '600',
-  },
-  swipeHint: {
-    paddingLeft: 2,
-    opacity: 0.18,
-  },
-  swipeHintText: {
-    fontSize: 16,
-    color: Colors.text.primary,
-    fontWeight: '300',
-  },
-});

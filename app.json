@@ -7,7 +7,7 @@
     "platforms": ["ios"],
     "orientation": "portrait",
     "icon": "./assets/Expo-app.json-icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/Expo-app.json-splash.png",
       "resizeMode": "contain",

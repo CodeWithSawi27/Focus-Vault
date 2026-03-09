@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
+import { useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
 
 interface ProfileStatsProps {
   totalHabits: number;
@@ -14,12 +16,40 @@ interface StatItemProps {
   bordered?: boolean;
 }
 
-const StatItem = ({ value, label, bordered }: StatItemProps) => (
-  <View style={[styles.statItem, bordered && styles.statBordered]}>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
+const StatItem = ({ value, label, bordered }: StatItemProps) => {
+  const { colors } = useTheme();
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        statItem: { flex: 1, alignItems: "center", gap: 4 },
+        statBordered: {
+          borderLeftWidth: StyleSheet.hairlineWidth,
+          borderLeftColor: colors.border,
+        },
+        statValue: {
+          ...Typography.title2,
+          color: colors.text.primary,
+          fontWeight: "700",
+          letterSpacing: -0.5,
+        },
+        statLabel: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          fontWeight: "600",
+        },
+      }),
+    [colors],
+  );
+
+  return (
+    <View style={[styles.statItem, bordered && styles.statBordered]}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+};
 
 export const ProfileStats = ({
   totalHabits,
@@ -27,9 +57,36 @@ export const ProfileStats = ({
   totalFocusMinutes,
   longestStreak,
 }: ProfileStatsProps) => {
-  const focusDisplay = totalFocusMinutes >= 60
-    ? `${Math.floor(totalFocusMinutes / 60)}h`
-    : `${totalFocusMinutes}m`;
+  const { colors } = useTheme();
+
+  const focusDisplay =
+    totalFocusMinutes >= 60
+      ? `${Math.floor(totalFocusMinutes / 60)}h`
+      : `${totalFocusMinutes}m`;
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        card: {
+          backgroundColor: colors.surfaceStrong,
+          borderRadius: Radius.lg,
+          padding: 16,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          gap: 12,
+          ...Shadow.sm,
+        },
+        cardLabel: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          textTransform: "uppercase",
+          letterSpacing: 0.8,
+          fontWeight: "600",
+        },
+        grid: { flexDirection: "row" },
+      }),
+    [colors],
+  );
 
   return (
     <View style={styles.card}>
@@ -43,47 +100,3 @@ export const ProfileStats = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.lg,
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.08)',
-    gap: 12,
-    ...Shadow.sm,
-  },
-  cardLabel: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontWeight: '600',
-  },
-  grid: {
-    flexDirection: 'row',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statBordered: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: 'rgba(0,0,0,0.08)',
-  },
-  statValue: {
-    ...Typography.title2,
-    color: Colors.text.primary,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  statLabel: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    fontWeight: '600',
-  },
-});

@@ -1,10 +1,18 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-} from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { SESSION_CATEGORIES, type SessionCategoryId } from '@/src/constants/categories';
-import { Colors, Typography, Radius } from '@/src/constants/theme';
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import * as Haptics from "expo-haptics";
+import { useTheme } from "@/src/context/ThemeContext";
+import {
+  SESSION_CATEGORIES,
+  type SessionCategoryId,
+} from "@/src/constants/categories";
+import { Typography, Radius } from "@/src/constants/theme";
 
 interface SessionCategoryPickerProps {
   selected: SessionCategoryId | null;
@@ -17,11 +25,56 @@ export const SessionCategoryPicker = ({
   onSelect,
   disabled = false,
 }: SessionCategoryPickerProps) => {
-  const handlePress = useCallback((id: SessionCategoryId) => {
-    if (disabled) return;
-    Haptics.selectionAsync();
-    onSelect(id);
-  }, [disabled, onSelect]);
+  const { colors } = useTheme();
+
+  const handlePress = useCallback(
+    (id: SessionCategoryId) => {
+      if (disabled) return;
+      Haptics.selectionAsync();
+      onSelect(id);
+    },
+    [disabled, onSelect],
+  );
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        wrapper: { gap: 8, alignSelf: "stretch" },
+        label: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          textTransform: "uppercase",
+          letterSpacing: 1,
+          fontWeight: "600",
+          paddingHorizontal: 2,
+        },
+        scroll: { gap: 8, paddingHorizontal: 2 },
+        chip: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          paddingHorizontal: 14,
+          paddingVertical: 9,
+          borderRadius: Radius.full,
+          backgroundColor: colors.surfaceStrong,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        chipActive: {
+          backgroundColor: colors.text.primary,
+          borderColor: colors.text.primary,
+        },
+        chipDisabled: { opacity: 0.4 },
+        emoji: { fontSize: 14 },
+        chipLabel: {
+          ...Typography.subhead,
+          color: colors.text.secondary,
+          fontWeight: "500",
+        },
+        chipLabelActive: { color: colors.text.inverse, fontWeight: "600" },
+      }),
+    [colors],
+  );
 
   return (
     <View style={styles.wrapper}>
@@ -46,7 +99,9 @@ export const SessionCategoryPicker = ({
               disabled={disabled}
             >
               <Text style={styles.emoji}>{cat.emoji}</Text>
-              <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
+              <Text
+                style={[styles.chipLabel, active && styles.chipLabelActive]}
+              >
                 {cat.label}
               </Text>
             </TouchableOpacity>
@@ -56,52 +111,3 @@ export const SessionCategoryPicker = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  wrapper: {
-    gap: 8,
-    alignSelf: 'stretch',
-  },
-  label: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: '600',
-    paddingHorizontal: 2,
-  },
-  scroll: {
-    gap: 8,
-    paddingHorizontal: 2,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: Radius.full,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
-  },
-  chipActive: {
-    backgroundColor: Colors.text.primary,
-    borderColor: Colors.text.primary,
-  },
-  chipDisabled: {
-    opacity: 0.4,
-  },
-  emoji: {
-    fontSize: 14,
-  },
-  chipLabel: {
-    ...Typography.subhead,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-  },
-  chipLabelActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-});

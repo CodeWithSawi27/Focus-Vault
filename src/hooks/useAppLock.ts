@@ -4,7 +4,9 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { useLockStore } from '@/src/store/lockStore';
 
-const STORAGE_KEY     = 'focusvault:appLockEnabled';
+// ⚠️ SecureStore keys must only contain alphanumeric, ".", "-", "_"
+// No colons allowed
+const STORAGE_KEY     = 'focusvault_appLockEnabled';
 const LOCK_TIMEOUT_MS = 60 * 1000;
 
 const runAuth = async (promptMessage: string): Promise<boolean> => {
@@ -14,7 +16,10 @@ const runAuth = async (promptMessage: string): Promise<boolean> => {
 
     console.log('[AppLock] hasHardware:', hasHardware, 'isEnrolled:', isEnrolled);
 
-    if (!hasHardware || !isEnrolled) return true; // no biometrics — allow through
+    if (!hasHardware || !isEnrolled) {
+      console.log('[AppLock] No biometrics — allowing through');
+      return true;
+    }
 
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage,
@@ -24,6 +29,8 @@ const runAuth = async (promptMessage: string): Promise<boolean> => {
     });
 
     console.log('[AppLock] auth result:', JSON.stringify(result));
+
+    // success:true with a warning is still a success
     return result.success;
   } catch (e) {
     console.warn('[AppLock] auth exception:', e);
@@ -43,8 +50,10 @@ export const useAppLock = () => {
     const load = async () => {
       try {
         const stored = await SecureStore.getItemAsync(STORAGE_KEY);
+        console.log('[AppLock] loaded preference:', stored);
         setEnabled(stored === 'true');
-      } catch {
+      } catch (e) {
+        console.warn('[AppLock] load error:', e);
         setEnabled(false);
       }
     };
@@ -61,7 +70,7 @@ export const useAppLock = () => {
       } else if (nextState === 'active') {
         if (backgroundedAt !== null) {
           const elapsed = Date.now() - backgroundedAt;
-          console.log('[AppLock] elapsed background time:', elapsed, 'ms');
+          console.log('[AppLock] elapsed:', elapsed, 'ms');
           if (elapsed >= LOCK_TIMEOUT_MS) {
             setLocked(true);
           }
@@ -74,25 +83,29 @@ export const useAppLock = () => {
     return () => sub.remove();
   }, [isEnabled, backgroundedAt]);
 
-  // ─── Unlock (called from LockScreen) ─────────────────────────────────────
+  // ─── Unlock ───────────────────────────────────────────────────────────────
   const authenticate = useCallback(async (): Promise<boolean> => {
     const success = await runAuth('Unlock FocusVault');
     if (success) setLocked(false);
     return success;
   }, []);
 
-  // ─── Enable App Lock ──────────────────────────────────────────────────────
+  // ─── Enable ───────────────────────────────────────────────────────────────
   const enableAppLock = useCallback(async (): Promise<boolean> => {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled  = await LocalAuthentication.isEnrolledAsync();
 
-      if (!hasHardware || !isEnrolled) return false;
+      if (!hasHardware || !isEnrolled) {
+        console.warn('[AppLock] Cannot enable — no biometrics enrolled');
+        return false;
+      }
 
       const success = await runAuth('Confirm your identity to enable App Lock');
       if (!success) return false;
 
       await SecureStore.setItemAsync(STORAGE_KEY, 'true');
+      console.log('[AppLock] enabled and saved');
       setEnabled(true);
       return true;
     } catch (e) {
@@ -101,13 +114,14 @@ export const useAppLock = () => {
     }
   }, []);
 
-  // ─── Disable App Lock ─────────────────────────────────────────────────────
+  // ─── Disable ──────────────────────────────────────────────────────────────
   const disableAppLock = useCallback(async (): Promise<boolean> => {
     try {
       const success = await runAuth('Confirm your identity to disable App Lock');
       if (!success) return false;
 
       await SecureStore.setItemAsync(STORAGE_KEY, 'false');
+      console.log('[AppLock] disabled and saved');
       setEnabled(false);
       setLocked(false);
       return true;
@@ -117,21 +131,24 @@ export const useAppLock = () => {
     }
   }, []);
 
-  // ─── Biometric type detection ─────────────────────────────────────────────
-  const getBiometricType = useCallback(async (): Promise<'faceid' | 'touchid' | 'none'> => {
-    try {
-      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-      if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-        return 'faceid';
+  // ─── Biometric type ───────────────────────────────────────────────────────
+  const getBiometricType = useCallback(
+    async (): Promise<'faceid' | 'touchid' | 'none'> => {
+      try {
+        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+          return 'faceid';
+        }
+        if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+          return 'touchid';
+        }
+        return 'none';
+      } catch {
+        return 'none';
       }
-      if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-        return 'touchid';
-      }
-      return 'none';
-    } catch {
-      return 'none';
-    }
-  }, []);
+    },
+    []
+  );
 
   return {
     isLocked,

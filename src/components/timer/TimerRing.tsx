@@ -1,12 +1,13 @@
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Colors, Typography } from '@/src/constants/theme';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from "react";
+import { View, Text, StyleSheet, Animated, Easing } from "react-native";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography } from "@/src/constants/theme";
 
 interface TimerRingProps {
   progress: number;
   remaining: number;
-  status: 'idle' | 'running' | 'paused' | 'completed';
+  status: "idle" | "running" | "paused" | "completed";
   pulseAnim: Animated.Value;
 }
 
@@ -19,39 +20,47 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const formatTime = (seconds: number): string => {
   const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-  const s = (seconds % 60).toString().padStart(2, '0');
+  const m = Math.floor((seconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
   return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  idle: 'READY',
-  running: 'FOCUSING',
-  paused: 'PAUSED',
-  completed: 'COMPLETE',
+  idle: "READY",
+  running: "FOCUSING",
+  paused: "PAUSED",
+  completed: "COMPLETE",
 };
 
-export const TimerRing = ({ progress, remaining, status, pulseAnim }: TimerRingProps) => {
+export const TimerRing = ({
+  progress,
+  remaining,
+  status,
+  pulseAnim,
+}: TimerRingProps) => {
+  const { colors, isDark } = useTheme();
+
   const animatedStroke = useRef(new Animated.Value(CIRCUMFERENCE)).current;
   const checkAnim = useRef(new Animated.Value(0)).current;
   const last10sPulse = useRef(new Animated.Value(1)).current;
 
-  const isCompleted = status === 'completed';
-  const isPaused = status === 'paused';
-  const isRunning = status === 'running';
+  const isCompleted = status === "completed";
+  const isPaused = status === "paused";
+  const isRunning = status === "running";
 
-  // Smooth progress animation
+  // Smooth arc progress
   useEffect(() => {
-    const offset = CIRCUMFERENCE * (1 - Math.min(progress, 1));
     Animated.timing(animatedStroke, {
-      toValue: offset,
+      toValue: CIRCUMFERENCE * (1 - Math.min(progress, 1)),
       duration: 500,
       useNativeDriver: true,
       easing: Easing.inOut(Easing.linear),
     }).start();
   }, [progress]);
 
-  // Checkmark animation on completion
+  // Completion checkmark bounce
   useEffect(() => {
     if (isCompleted) {
       Animated.spring(checkAnim, {
@@ -63,33 +72,108 @@ export const TimerRing = ({ progress, remaining, status, pulseAnim }: TimerRingP
     }
   }, [isCompleted]);
 
-  // Last 10s heartbeat pulse
+  // Last-10s heartbeat
   useEffect(() => {
     if (isRunning && remaining <= 10 && remaining > 0) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(last10sPulse, { toValue: 1.1, duration: 300, useNativeDriver: true }),
-          Animated.timing(last10sPulse, { toValue: 1, duration: 300, useNativeDriver: true }),
-        ])
+          Animated.timing(last10sPulse, {
+            toValue: 1.1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(last10sPulse, {
+            toValue: 1.0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
       ).start();
+    } else {
+      // Stop the loop cleanly when not in last-10s window
+      last10sPulse.stopAnimation();
+      last10sPulse.setValue(1);
     }
   }, [remaining, isRunning]);
 
+  // Ring color adapts to dark mode
   const ringColor = isCompleted
-    ? Colors.accent.green
+    ? colors.accent.green
     : isPaused
-    ? 'rgba(0,0,0,0.2)'
-    : Colors.text.primary;
+      ? colors.border
+      : colors.text.primary;
 
-  const trackOpacity = isRunning ? 0.06 : 0.04;
+  // Track ring is slightly more visible in dark mode
+  const trackColor = isDark
+    ? "rgba(255,255,255,0.08)"
+    : `rgba(0,0,0,${isRunning ? 0.06 : 0.04})`;
+
+  // Gradient stops adapt to mode
+  const gradStart = isCompleted
+    ? colors.accent.green
+    : isDark
+      ? "#E0E0E0"
+      : "#111111";
+  const gradEnd = isCompleted ? "#4CAF50" : isDark ? "#888888" : "#444444";
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          width: SIZE,
+          height: SIZE,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        svg: { position: "absolute" },
+        center: { alignItems: "center", gap: 2 },
+        statusLabel: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          letterSpacing: 2,
+          fontWeight: "600",
+          marginBottom: 4,
+        },
+        statusPaused: { color: colors.text.tertiary },
+        time: {
+          fontSize: 58,
+          fontWeight: "200",
+          color: colors.text.primary,
+          letterSpacing: -3,
+          fontVariant: ["tabular-nums"],
+        },
+        timePaused: { color: colors.text.tertiary },
+        doneCheck: {
+          fontSize: 60,
+          fontWeight: "300",
+          color: colors.accent.green,
+          lineHeight: 72,
+        },
+        progressPct: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          letterSpacing: 0.5,
+          marginTop: 4,
+        },
+        completeLabel: {
+          ...Typography.subhead,
+          color: colors.accent.green,
+          fontWeight: "500",
+          marginTop: 2,
+        },
+      }),
+    [colors],
+  );
 
   return (
-    <Animated.View style={[styles.container, { transform: [{ scale: pulseAnim }] }]}>
+    <Animated.View
+      style={[styles.container, { transform: [{ scale: pulseAnim }] }]}
+    >
       <Svg width={SIZE} height={SIZE} style={styles.svg}>
         <Defs>
           <LinearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={isCompleted ? Colors.accent.green : '#111111'} />
-            <Stop offset="100%" stopColor={isCompleted ? '#4CAF50' : '#444444'} />
+            <Stop offset="0%" stopColor={gradStart} />
+            <Stop offset="100%" stopColor={gradEnd} />
           </LinearGradient>
         </Defs>
 
@@ -98,12 +182,12 @@ export const TimerRing = ({ progress, remaining, status, pulseAnim }: TimerRingP
           cx={SIZE / 2}
           cy={SIZE / 2}
           r={RADIUS}
-          stroke={`rgba(0,0,0,${trackOpacity})`}
+          stroke={trackColor}
           strokeWidth={STROKE}
           fill="none"
         />
 
-        {/* Animated Progress arc */}
+        {/* Progress arc */}
         {progress > 0 && (
           <AnimatedCircle
             cx={SIZE / 2}
@@ -121,7 +205,6 @@ export const TimerRing = ({ progress, remaining, status, pulseAnim }: TimerRingP
         )}
       </Svg>
 
-      {/* Center content */}
       <View style={styles.center}>
         <Text style={[styles.statusLabel, isPaused && styles.statusPaused]}>
           {STATUS_LABEL[status]}
@@ -129,10 +212,7 @@ export const TimerRing = ({ progress, remaining, status, pulseAnim }: TimerRingP
 
         {isCompleted ? (
           <Animated.Text
-            style={[
-              styles.doneCheck,
-              { transform: [{ scale: checkAnim }] },
-            ]}
+            style={[styles.doneCheck, { transform: [{ scale: checkAnim }] }]}
           >
             ✓
           </Animated.Text>
@@ -148,7 +228,7 @@ export const TimerRing = ({ progress, remaining, status, pulseAnim }: TimerRingP
           </Animated.Text>
         )}
 
-        {status !== 'idle' && !isCompleted && (
+        {status !== "idle" && !isCompleted && (
           <Text style={styles.progressPct}>{Math.round(progress * 100)}%</Text>
         )}
 
@@ -157,57 +237,3 @@ export const TimerRing = ({ progress, remaining, status, pulseAnim }: TimerRingP
     </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: SIZE,
-    height: SIZE,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  svg: {
-    position: 'absolute',
-  },
-  center: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  statusLabel: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    letterSpacing: 2,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  statusPaused: {
-    color: 'rgba(0,0,0,0.25)',
-  },
-  time: {
-    fontSize: 58,
-    fontWeight: '200',
-    color: Colors.text.primary,
-    letterSpacing: -3,
-    fontVariant: ['tabular-nums'],
-  },
-  timePaused: {
-    color: 'rgba(0,0,0,0.3)',
-  },
-  doneCheck: {
-    fontSize: 60,
-    fontWeight: '300',
-    color: Colors.accent.green,
-    lineHeight: 72,
-  },
-  progressPct: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    letterSpacing: 0.5,
-    marginTop: 4,
-  },
-  completeLabel: {
-    ...Typography.subhead,
-    color: Colors.accent.green,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-});

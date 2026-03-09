@@ -1,15 +1,17 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Play, Pause, Square } from 'lucide-react-native';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
+import { useMemo } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Play, Pause, Square } from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
 
-type TimerStatus = 'idle' | 'running' | 'paused' | 'completed';
+type TimerStatus = "idle" | "running" | "paused" | "completed";
 
 interface TimerControlsProps {
   status: TimerStatus;
-  onStart:  () => void;
-  onPause:  () => void;
+  onStart: () => void;
+  onPause: () => void;
   onResume: () => void;
-  onStop:   () => void;
+  onStop: () => void;
 }
 
 export const TimerControls = ({
@@ -19,26 +21,73 @@ export const TimerControls = ({
   onResume,
   onStop,
 }: TimerControlsProps) => {
-  const showStop = status === 'running' || status === 'paused';
-  const isCompleted = status === 'completed';
+  const { colors } = useTheme();
+
+  const showStop = status === "running" || status === "paused";
+  const isCompleted = status === "completed";
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 20,
+        },
+        primaryBtn: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          backgroundColor: colors.text.primary,
+          borderRadius: Radius.full,
+          paddingVertical: 16,
+          paddingHorizontal: 40,
+          ...Shadow.md,
+        },
+        primaryBtnGreen: { backgroundColor: colors.accent.green },
+        primaryLabel: {
+          ...Typography.headline,
+          color: colors.text.inverse,
+          letterSpacing: -0.2,
+        },
+        secondaryBtn: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          borderRadius: Radius.full,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        secondaryLabel: {
+          ...Typography.subhead,
+          color: colors.text.secondary,
+          fontWeight: "500",
+        },
+        placeholder: { width: 80 },
+      }),
+    [colors],
+  );
 
   return (
     <View style={styles.container}>
-      {/* Stop button — left */}
       {showStop ? (
         <TouchableOpacity
           style={styles.secondaryBtn}
           onPress={onStop}
           activeOpacity={0.7}
         >
-          <Square size={18} color={Colors.text.secondary} strokeWidth={1.8} />
+          <Square size={18} color={colors.text.secondary} strokeWidth={1.8} />
           <Text style={styles.secondaryLabel}>Stop</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.placeholder} />
       )}
 
-      {/* Primary action — center */}
       {isCompleted ? (
         <TouchableOpacity
           style={[styles.primaryBtn, styles.primaryBtnGreen]}
@@ -47,7 +96,7 @@ export const TimerControls = ({
         >
           <Text style={styles.primaryLabel}>Done</Text>
         </TouchableOpacity>
-      ) : status === 'idle' ? (
+      ) : status === "idle" ? (
         <TouchableOpacity
           style={styles.primaryBtn}
           onPress={onStart}
@@ -55,19 +104,19 @@ export const TimerControls = ({
         >
           <Play
             size={22}
-            color={Colors.text.inverse}
+            color={colors.text.inverse}
             strokeWidth={2}
-            fill={Colors.text.inverse}
+            fill={colors.text.inverse}
           />
           <Text style={styles.primaryLabel}>Start</Text>
         </TouchableOpacity>
-      ) : status === 'running' ? (
+      ) : status === "running" ? (
         <TouchableOpacity
           style={styles.primaryBtn}
           onPress={onPause}
           activeOpacity={0.8}
         >
-          <Pause size={22} color={Colors.text.inverse} strokeWidth={2} />
+          <Pause size={22} color={colors.text.inverse} strokeWidth={2} />
           <Text style={styles.primaryLabel}>Pause</Text>
         </TouchableOpacity>
       ) : (
@@ -78,9 +127,9 @@ export const TimerControls = ({
         >
           <Play
             size={22}
-            color={Colors.text.inverse}
+            color={colors.text.inverse}
             strokeWidth={2}
-            fill={Colors.text.inverse}
+            fill={colors.text.inverse}
           />
           <Text style={styles.primaryLabel}>Resume</Text>
         </TouchableOpacity>
@@ -90,50 +139,3 @@ export const TimerControls = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.text.primary,
-    borderRadius: Radius.full,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    ...Shadow.md,
-  },
-  primaryBtnGreen: {
-    backgroundColor: Colors.accent.green,
-  },
-  primaryLabel: {
-    ...Typography.headline,
-    color: Colors.text.inverse,
-    letterSpacing: -0.2,
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
-  },
-  secondaryLabel: {
-    ...Typography.subhead,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-  },
-  placeholder: {
-    width: 80,
-  },
-});

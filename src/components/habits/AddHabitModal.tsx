@@ -1,21 +1,37 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import {
-  View, Text, StyleSheet, Modal, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView,
-  Animated, Dimensions, SafeAreaView, Pressable,
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Animated,
+  Dimensions,
+  SafeAreaView,
+  Pressable,
   PanResponder,
-} from 'react-native';
-import { X } from 'lucide-react-native';
-import { InputField } from '@/src/components/ui/InputField';
-import { PrimaryButton } from '@/src/components/ui/PrimaryButton';
-import { HabitFrequencyPicker } from './HabitFrequencyPicker';
-import { ReminderTimePicker } from './ReminderTimePicker';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
-import { Spacing } from '@/src/constants/spacing';
-import type { CreateHabitPayload } from '@/src/hooks/useHabits';
-import type { Habit } from '@/src/types';
+} from "react-native";
+import { X } from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { InputField } from "@/src/components/ui/InputField";
+import { PrimaryButton } from "@/src/components/ui/PrimaryButton";
+import { HabitFrequencyPicker } from "./HabitFrequencyPicker";
+import { ReminderTimePicker } from "./ReminderTimePicker";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
+import { Spacing } from "@/src/constants/spacing";
+import type { CreateHabitPayload } from "@/src/hooks/useHabits";
+import type { Habit } from "@/src/types";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 interface AddHabitModalProps {
   visible: boolean;
@@ -30,26 +46,24 @@ export const AddHabitModal = ({
   onSubmit,
   editingHabit,
 }: AddHabitModalProps) => {
-  const [name, setName]                 = useState('');
-  const [description, setDescription]   = useState('');
-  const [frequency, setFrequency]       = useState<'daily' | 'weekly'>('daily');
+  const { colors } = useTheme();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [frequency, setFrequency] = useState<"daily" | "weekly">("daily");
   const [reminderTime, setReminderTime] = useState<string | null>(null);
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const slideAnim  = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const dismissY   = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const dismissY = useRef(new Animated.Value(0)).current;
 
-  // ─── Swipe down to dismiss ────────────────────────────────────────────────
   const dismissPan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) =>
         g.dy > 10 && Math.abs(g.dy) > Math.abs(g.dx),
-
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) dismissY.setValue(g.dy);
       },
-
       onPanResponderRelease: (_, g) => {
         if (loading) {
           Animated.spring(dismissY, {
@@ -60,7 +74,6 @@ export const AddHabitModal = ({
           }).start();
           return;
         }
-
         if (g.dy > 120 || g.vy > 0.5) {
           Animated.timing(dismissY, {
             toValue: SCREEN_HEIGHT,
@@ -79,7 +92,6 @@ export const AddHabitModal = ({
           }).start();
         }
       },
-
       onPanResponderTerminate: () => {
         Animated.spring(dismissY, {
           toValue: 0,
@@ -88,10 +100,9 @@ export const AddHabitModal = ({
           stiffness: 200,
         }).start();
       },
-    })
+    }),
   ).current;
 
-  // ─── Slide in/out ─────────────────────────────────────────────────────────
   const handleDismiss = useCallback(() => {
     if (loading) return;
     Animated.timing(slideAnim, {
@@ -105,16 +116,16 @@ export const AddHabitModal = ({
     if (visible) {
       if (editingHabit) {
         setName(editingHabit.name);
-        setDescription(editingHabit.description ?? '');
+        setDescription(editingHabit.description ?? "");
         setFrequency(editingHabit.frequency);
         setReminderTime(editingHabit.reminder_time ?? null);
       } else {
-        setName('');
-        setDescription('');
-        setFrequency('daily');
+        setName("");
+        setDescription("");
+        setFrequency("daily");
         setReminderTime(null);
       }
-      setError('');
+      setError("");
       dismissY.setValue(0);
       Animated.spring(slideAnim, {
         toValue: 0,
@@ -125,20 +136,118 @@ export const AddHabitModal = ({
     }
   }, [visible, editingHabit, slideAnim]);
 
-  // ─── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
-    if (!name.trim()) { setError('Habit name is required.'); return; }
-    setError('');
+    if (!name.trim()) {
+      setError("Habit name is required.");
+      return;
+    }
+    setError("");
     setLoading(true);
     try {
-      await onSubmit({ name, description, frequency, reminder_time: reminderTime });
+      await onSubmit({
+        name,
+        description,
+        frequency,
+        reminder_time: reminderTime,
+      });
       handleDismiss();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }, [name, description, frequency, reminderTime, onSubmit, handleDismiss]);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        root: { flex: 1, justifyContent: "flex-end" },
+        overlay: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: "rgba(0,0,0,0.4)",
+        },
+        sheet: {
+          backgroundColor: colors.background,
+          borderTopLeftRadius: Radius.xl,
+          borderTopRightRadius: Radius.xl,
+          maxHeight: SCREEN_HEIGHT * 0.9,
+          ...Shadow.lg,
+        },
+        dragHandle: {
+          width: "100%",
+          alignItems: "center",
+          paddingTop: 10,
+          paddingBottom: 4,
+        },
+        dragBar: {
+          width: 36,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: colors.border,
+        },
+        keyboardView: { width: "100%" },
+        safeArea: { width: "100%" },
+        content: {
+          paddingHorizontal: Spacing.lg,
+          paddingBottom: Platform.OS === "ios" ? 20 : 40,
+          paddingTop: Spacing.md,
+        },
+        headerRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingBottom: Spacing.md,
+        },
+        headerLeft: { width: 34 },
+        title: {
+          ...Typography.headline,
+          color: colors.text.primary,
+          letterSpacing: -0.3,
+        },
+        closeBtn: {
+          width: 34,
+          height: 34,
+          borderRadius: 17,
+          backgroundColor: colors.surface,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        divider: {
+          height: StyleSheet.hairlineWidth,
+          backgroundColor: colors.border,
+          marginBottom: Spacing.lg,
+        },
+        form: { gap: Spacing.lg },
+        fieldGroup: { gap: 8 },
+        fieldLabel: {
+          ...Typography.footnote,
+          color: colors.text.secondary,
+          fontWeight: "500",
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+        },
+        textArea: {
+          height: undefined,
+          minHeight: 80,
+          paddingTop: 12,
+          textAlignVertical: "top",
+        },
+        errorBox: {
+          backgroundColor: colors.accent.redMuted,
+          borderRadius: Radius.md,
+          padding: 12,
+          borderWidth: 1,
+          borderColor: colors.accent.red + "30",
+        },
+        errorText: {
+          ...Typography.footnote,
+          color: colors.accent.red,
+          textAlign: "center",
+        },
+        buttonGroup: { gap: Spacing.sm, marginTop: Spacing.xs },
+      }),
+    [colors],
+  );
 
   return (
     <Modal
@@ -154,20 +263,16 @@ export const AddHabitModal = ({
           style={[
             styles.sheet,
             {
-              transform: [
-                { translateY: slideAnim },
-                { translateY: dismissY },
-              ],
+              transform: [{ translateY: slideAnim }, { translateY: dismissY }],
             },
           ]}
         >
-          {/* Drag handle */}
           <View {...dismissPan.panHandlers} style={styles.dragHandle}>
             <View style={styles.dragBar} />
           </View>
 
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.keyboardView}
           >
             <SafeAreaView style={styles.safeArea}>
@@ -176,18 +281,21 @@ export const AddHabitModal = ({
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                {/* Header row */}
                 <View style={styles.headerRow}>
                   <View style={styles.headerLeft} />
                   <Text style={styles.title}>
-                    {editingHabit ? 'Edit Habit' : 'New Habit'}
+                    {editingHabit ? "Edit Habit" : "New Habit"}
                   </Text>
                   <TouchableOpacity
                     onPress={handleDismiss}
                     style={styles.closeBtn}
                     activeOpacity={0.7}
                   >
-                    <X size={18} color={Colors.text.secondary} strokeWidth={2} />
+                    <X
+                      size={18}
+                      color={colors.text.secondary}
+                      strokeWidth={2}
+                    />
                   </TouchableOpacity>
                 </View>
 
@@ -201,7 +309,6 @@ export const AddHabitModal = ({
                     placeholder="e.g. Morning run"
                     autoCapitalize="sentences"
                   />
-
                   <InputField
                     label="Description"
                     value={description}
@@ -237,7 +344,7 @@ export const AddHabitModal = ({
 
                   <View style={styles.buttonGroup}>
                     <PrimaryButton
-                      label={editingHabit ? 'Save Changes' : 'Create Habit'}
+                      label={editingHabit ? "Save Changes" : "Create Habit"}
                       onPress={handleSubmit}
                       loading={loading}
                     />
@@ -257,106 +364,3 @@ export const AddHabitModal = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  sheet: {
-    backgroundColor: '#FAFAFA',
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    maxHeight: SCREEN_HEIGHT * 0.9,
-    ...Shadow.lg,
-  },
-  dragHandle: {
-    width: '100%',
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  dragBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.12)',
-  },
-  keyboardView: {
-    width: '100%',
-  },
-  safeArea: {
-    width: '100%',
-  },
-  content: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 40,
-    paddingTop: Spacing.md,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: Spacing.md,
-  },
-  headerLeft: {
-    width: 34,
-  },
-  title: {
-    ...Typography.headline,
-    color: Colors.text.primary,
-    letterSpacing: -0.3,
-  },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    marginBottom: Spacing.lg,
-  },
-  form: {
-    gap: Spacing.lg,
-  },
-  fieldGroup: {
-    gap: 8,
-  },
-  fieldLabel: {
-    ...Typography.footnote,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  textArea: {
-    height: undefined,
-    minHeight: 80,
-    paddingTop: 12,
-    textAlignVertical: 'top',
-  },
-  errorBox: {
-    backgroundColor: 'rgba(204,43,43,0.06)',
-    borderRadius: Radius.md,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(204,43,43,0.12)',
-  },
-  errorText: {
-    ...Typography.footnote,
-    color: Colors.accent.red,
-    textAlign: 'center',
-  },
-  buttonGroup: {
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-});

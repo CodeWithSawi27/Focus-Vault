@@ -1,6 +1,8 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight, LucideIcon } from 'lucide-react-native';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
+import { useMemo } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { ChevronRight, LucideIcon } from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
 
 export interface MenuItem {
   id: string;
@@ -17,7 +19,63 @@ interface ProfileMenuSectionProps {
   items: MenuItem[];
 }
 
-export const ProfileMenuSection = ({ title, items }: ProfileMenuSectionProps) => {
+export const ProfileMenuSection = ({
+  title,
+  items,
+}: ProfileMenuSectionProps) => {
+  const { colors } = useTheme();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        section: { gap: 8 },
+        sectionTitle: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          textTransform: "uppercase",
+          letterSpacing: 0.8,
+          fontWeight: "600",
+        },
+        card: {
+          backgroundColor: colors.surfaceStrong,
+          borderRadius: Radius.lg,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          overflow: "hidden",
+          ...Shadow.sm,
+        },
+        row: {
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          gap: 12,
+        },
+        rowBorder: {
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: colors.border,
+        },
+        iconWrap: {
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          backgroundColor: colors.surface,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        iconWrapDestructive: { backgroundColor: colors.accent.redMuted },
+        rowContent: { flex: 1, gap: 2 },
+        rowLabel: {
+          ...Typography.callout,
+          color: colors.text.primary,
+          fontWeight: "500",
+        },
+        rowLabelDestructive: { color: colors.accent.red },
+        rowSublabel: { ...Typography.footnote, color: colors.text.tertiary },
+      }),
+    [colors],
+  );
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -32,33 +90,37 @@ export const ProfileMenuSection = ({ title, items }: ProfileMenuSectionProps) =>
               onPress={item.onPress}
               activeOpacity={0.6}
             >
-              <View style={[
-                styles.iconWrap,
-                item.destructive && styles.iconWrapDestructive,
-              ]}>
+              <View
+                style={[
+                  styles.iconWrap,
+                  item.destructive && styles.iconWrapDestructive,
+                ]}
+              >
                 <Icon
                   size={16}
-                  color={item.destructive ? Colors.accent.red : Colors.text.secondary}
+                  color={
+                    item.destructive ? colors.accent.red : colors.text.secondary
+                  }
                   strokeWidth={1.8}
                 />
               </View>
-
               <View style={styles.rowContent}>
-                <Text style={[
-                  styles.rowLabel,
-                  item.destructive && styles.rowLabelDestructive,
-                ]}>
+                <Text
+                  style={[
+                    styles.rowLabel,
+                    item.destructive && styles.rowLabelDestructive,
+                  ]}
+                >
                   {item.label}
                 </Text>
                 {item.sublabel ? (
                   <Text style={styles.rowSublabel}>{item.sublabel}</Text>
                 ) : null}
               </View>
-
               {!item.hideChevron && (
                 <ChevronRight
                   size={16}
-                  color={Colors.text.tertiary}
+                  color={colors.text.tertiary}
                   strokeWidth={1.8}
                 />
               )}
@@ -69,62 +131,3 @@ export const ProfileMenuSection = ({ title, items }: ProfileMenuSectionProps) =>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  section: {
-    gap: 8,
-  },
-  sectionTitle: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontWeight: '600',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.08)',
-    overflow: 'hidden',
-    ...Shadow.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  rowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
-  },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconWrapDestructive: {
-    backgroundColor: Colors.accent.redMuted,
-  },
-  rowContent: {
-    flex: 1,
-    gap: 2,
-  },
-  rowLabel: {
-    ...Typography.callout,
-    color: Colors.text.primary,
-    fontWeight: '500',
-  },
-  rowLabelDestructive: {
-    color: Colors.accent.red,
-  },
-  rowSublabel: {
-    ...Typography.footnote,
-    color: Colors.text.tertiary,
-  },
-});

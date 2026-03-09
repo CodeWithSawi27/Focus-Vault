@@ -1,8 +1,10 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
-import { Spacing } from '@/src/constants/spacing';
-import type { WeeklySummary } from '@/src/hooks/useDashboard';
+import { useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
+import { Spacing } from "@/src/constants/spacing";
+import type { WeeklySummary } from "@/src/hooks/useDashboard";
 
 interface WeeklySummaryCardProps {
   summary: WeeklySummary;
@@ -16,11 +18,16 @@ const formatHours = (mins: number): string => {
 };
 
 const getDelta = (current: number, previous: number) => {
-  if (previous === 0) return { pct: null, dir: 'neutral' as const };
+  if (previous === 0) return { pct: null, dir: "neutral" as const };
   const pct = Math.round(((current - previous) / previous) * 100);
   return {
     pct: Math.abs(pct),
-    dir: pct > 0 ? 'up' as const : pct < 0 ? 'down' as const : 'neutral' as const,
+    dir:
+      pct > 0
+        ? ("up" as const)
+        : pct < 0
+          ? ("down" as const)
+          : ("neutral" as const),
   };
 };
 
@@ -32,17 +39,45 @@ interface StatColumnProps {
 }
 
 const StatColumn = ({ label, thisWeek, lastWeek, delta }: StatColumnProps) => {
-  const Icon = delta.dir === 'up'
-    ? TrendingUp
-    : delta.dir === 'down'
-    ? TrendingDown
-    : Minus;
+  const { colors } = useTheme();
 
-  const trendColor = delta.dir === 'up'
-    ? Colors.accent.green
-    : delta.dir === 'down'
-    ? Colors.accent.red
-    : Colors.text.tertiary;
+  const Icon =
+    delta.dir === "up"
+      ? TrendingUp
+      : delta.dir === "down"
+        ? TrendingDown
+        : Minus;
+  const trendColor =
+    delta.dir === "up"
+      ? colors.accent.green
+      : delta.dir === "down"
+        ? colors.accent.red
+        : colors.text.tertiary;
+
+  const colStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        wrapper: { flex: 1, gap: 4 },
+        label: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          fontWeight: "600",
+          letterSpacing: 0.8,
+          textTransform: "uppercase",
+        },
+        thisWeek: {
+          fontSize: 24,
+          fontWeight: "700",
+          color: colors.text.primary,
+          letterSpacing: -0.5,
+          fontVariant: ["tabular-nums"],
+        },
+        trendRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+        trendText: { ...Typography.caption, fontWeight: "600" },
+        lastWeek: { ...Typography.caption, color: colors.text.tertiary },
+      }),
+    [colors],
+  );
 
   return (
     <View style={colStyles.wrapper}>
@@ -55,7 +90,7 @@ const StatColumn = ({ label, thisWeek, lastWeek, delta }: StatColumnProps) => {
             {delta.pct}% vs last week
           </Text>
         ) : (
-          <Text style={[colStyles.trendText, { color: Colors.text.tertiary }]}>
+          <Text style={[colStyles.trendText, { color: colors.text.tertiary }]}>
             No data last week
           </Text>
         )}
@@ -65,18 +100,46 @@ const StatColumn = ({ label, thisWeek, lastWeek, delta }: StatColumnProps) => {
   );
 };
 
-const colStyles = StyleSheet.create({
-  wrapper:   { flex: 1, gap: 4 },
-  label:     { ...Typography.caption, color: Colors.text.tertiary, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
-  thisWeek:  { fontSize: 24, fontWeight: '700', color: Colors.text.primary, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
-  trendRow:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  trendText: { ...Typography.caption, fontWeight: '600' },
-  lastWeek:  { ...Typography.caption, color: Colors.text.tertiary },
-});
-
 export const WeeklySummaryCard = ({ summary }: WeeklySummaryCardProps) => {
-  const focusDelta   = getDelta(summary.thisWeekMinutes, summary.lastWeekMinutes);
-  const habitDelta   = getDelta(summary.thisWeekHabitsCompleted, summary.lastWeekHabitsCompleted);
+  const { colors } = useTheme();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        card: {
+          backgroundColor: colors.surfaceStrong,
+          borderRadius: Radius.xl,
+          padding: Spacing.md,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          gap: 12,
+          ...Shadow.sm,
+        },
+        title: {
+          ...Typography.caption,
+          color: colors.text.tertiary,
+          fontWeight: "600",
+          letterSpacing: 1,
+        },
+        divider: {
+          height: StyleSheet.hairlineWidth,
+          backgroundColor: colors.border,
+          marginVertical: -4,
+        },
+        columns: { flexDirection: "row", gap: 16 },
+        columnDivider: {
+          width: StyleSheet.hairlineWidth,
+          backgroundColor: colors.border,
+        },
+      }),
+    [colors],
+  );
+
+  const focusDelta = getDelta(summary.thisWeekMinutes, summary.lastWeekMinutes);
+  const habitDelta = getDelta(
+    summary.thisWeekHabitsCompleted,
+    summary.lastWeekHabitsCompleted,
+  );
 
   return (
     <View style={styles.card}>
@@ -100,34 +163,3 @@ export const WeeklySummaryCard = ({ summary }: WeeklySummaryCardProps) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.xl,
-    padding: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.07)',
-    gap: 12,
-    ...Shadow.sm,
-  },
-  title: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    marginVertical: -4,
-  },
-  columns: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  columnDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0,0,0,0.07)',
-  },
-});

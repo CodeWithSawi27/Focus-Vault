@@ -1,8 +1,10 @@
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { LucideIcon } from 'lucide-react-native';
-import { Colors, Typography, Radius } from '@/src/constants/theme';
+import { useMemo } from "react";
+import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { LucideIcon } from "lucide-react-native";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius } from "@/src/constants/theme";
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export interface SlideData {
   icon: LucideIcon;
@@ -13,21 +15,72 @@ export interface SlideData {
   subtitle: string;
 }
 
-interface OnboardingSlidePros {
+interface OnboardingSlideProps {
   slide: SlideData;
 }
 
-export const OnboardingSlide = ({ slide }: OnboardingSlidePros) => {
+export const OnboardingSlide = ({ slide }: OnboardingSlideProps) => {
+  const { colors, isDark } = useTheme();
   const Icon = slide.icon;
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          width: SCREEN_WIDTH,
+          flex: 1,
+          paddingHorizontal: 32,
+          justifyContent: "center",
+          gap: 36,
+          alignItems: "flex-start",
+        },
+        iconCard: {
+          width: 88,
+          height: 88,
+          borderRadius: 28,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        textBlock: { gap: 12 },
+        tagWrap: {
+          alignSelf: "flex-start",
+          backgroundColor: isDark
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(0,0,0,0.05)",
+          borderRadius: Radius.full,
+          paddingHorizontal: 12,
+          paddingVertical: 4,
+          borderWidth: 1,
+          borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)",
+        },
+        tag: {
+          ...Typography.caption,
+          color: colors.text.secondary,
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: 1,
+        },
+        title: {
+          fontSize: 34,
+          fontWeight: "700",
+          color: colors.text.primary,
+          letterSpacing: -0.8,
+          lineHeight: 40,
+        },
+        subtitle: {
+          ...Typography.callout,
+          color: colors.text.secondary,
+          lineHeight: 24,
+        },
+      }),
+    [colors, isDark],
+  );
 
   return (
     <View style={styles.container}>
-      {/* Icon card */}
       <View style={[styles.iconCard, { backgroundColor: slide.iconBg }]}>
         <Icon size={40} color={slide.iconColor} strokeWidth={1.5} />
       </View>
-
-      {/* Text block */}
       <View style={styles.textBlock}>
         <View style={styles.tagWrap}>
           <Text style={styles.tag}>{slide.tag}</Text>
@@ -38,52 +91,3 @@ export const OnboardingSlide = ({ slide }: OnboardingSlidePros) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: SCREEN_WIDTH,
-    flex: 1,
-    paddingHorizontal: 32,
-    justifyContent: 'center',
-    gap: 36,
-    alignItems: 'flex-start',
-  },
-  iconCard: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  textBlock: {
-    gap: 12,
-  },
-  tagWrap: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: Radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.07)',
-  },
-  tag: {
-    ...Typography.caption,
-    color: Colors.text.secondary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    letterSpacing: -0.8,
-    lineHeight: 40,
-  },
-  subtitle: {
-    ...Typography.callout,
-    color: Colors.text.secondary,
-    lineHeight: 24,
-  },
-});

@@ -1,7 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Radius, Shadow } from '@/src/constants/theme';
-import type { AnalyticsPeriod } from '@/src/hooks/useAnalytics';
+import { useMemo } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import * as Haptics from "expo-haptics";
+import { useTheme } from "@/src/context/ThemeContext";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
+import type { AnalyticsPeriod } from "@/src/hooks/useAnalytics";
 
 interface FilterTabsProps {
   period: AnalyticsPeriod;
@@ -9,14 +11,42 @@ interface FilterTabsProps {
 }
 
 const TABS: { key: AnalyticsPeriod; label: string }[] = [
-  { key: 'week',  label: 'This Week' },
-  { key: 'month', label: 'This Month' },
+  { key: "week", label: "This Week" },
+  { key: "month", label: "This Month" },
 ];
 
 export const FilterTabs = ({ period, onChange }: FilterTabsProps) => {
+  const { colors } = useTheme();
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flexDirection: "row",
+          backgroundColor: colors.surface,
+          borderRadius: Radius.full,
+          padding: 3,
+        },
+        tab: {
+          flex: 1,
+          paddingVertical: 8,
+          borderRadius: Radius.full,
+          alignItems: "center",
+        },
+        tabActive: { backgroundColor: colors.surfaceStrong, ...Shadow.sm },
+        label: {
+          ...Typography.subhead,
+          color: colors.text.tertiary,
+          fontWeight: "500",
+        },
+        labelActive: { color: colors.text.primary, fontWeight: "600" },
+      }),
+    [colors],
+  );
+
   return (
     <View style={styles.container}>
-      {TABS.map(tab => {
+      {TABS.map((tab) => {
         const active = tab.key === period;
         return (
           <TouchableOpacity
@@ -37,31 +67,3 @@ export const FilterTabs = ({ period, onChange }: FilterTabsProps) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: Radius.full,
-    padding: 3,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: '#FFFFFF',
-    ...Shadow.sm,
-  },
-  label: {
-    ...Typography.subhead,
-    color: Colors.text.tertiary,
-    fontWeight: '500',
-  },
-  labelActive: {
-    color: Colors.text.primary,
-    fontWeight: '600',
-  },
-});
