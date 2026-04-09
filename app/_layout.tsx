@@ -3,11 +3,28 @@ import { View, StyleSheet } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ThemeProvider, useTheme } from "@/src/context/ThemeContext";
+import { ToastProvider } from "@/src/context/ToastContext";
 import { useAuthStore } from "@/src/store/authStore";
 import { useAuthListener } from "@/src/hooks/useAuthListener";
 import { useOnboardingStore } from "@/src/store/onboardingStore";
 import { useAppLock } from "@/src/hooks/useAppLock";
 import { LockScreen } from "@/src/components/lock/LockScreen";
+import { ErrorBoundary } from "@/src/components/ui/ErrorBoundary";
+
+// ─── Bridges our theme system into ToastProvider ──────────────────────────────
+// Must sit inside ThemeProvider so it can read isDark.
+function ToastBridge({ children }: { children: React.ReactNode }) {
+  const { isDark } = useTheme();
+  return (
+    <ToastProvider
+      colorScheme={isDark ? "dark" : "light"}
+      position="top-center"
+      maxToasts={3}
+    >
+      {children}
+    </ToastProvider>
+  );
+}
 
 function RootLayoutInner() {
   useAuthListener();
@@ -65,9 +82,21 @@ function RootLayoutInner() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <RootLayoutInner />
-    </ThemeProvider>
+    <View style={styles.root}>
+      {/* Outer boundary — catches ThemeProvider / ToastProvider boot failures */}
+      <ErrorBoundary>
+        <ThemeProvider>
+          {/* ToastBridge reads isDark from ThemeProvider and passes it down */}
+          <ToastBridge>
+            {/* Inner boundary — catches navigation/screen failures without
+                killing the shell, so toasts can still render above the crash */}
+            <ErrorBoundary>
+              <RootLayoutInner />
+            </ErrorBoundary>
+          </ToastBridge>
+        </ThemeProvider>
+      </ErrorBoundary>
+    </View>
   );
 }
 

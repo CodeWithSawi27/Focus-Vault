@@ -18,6 +18,7 @@ import { InputField } from "@/src/components/ui/InputField";
 import { GoogleSignInButton } from "@/src/components/ui/GoogleSignInButton";
 import { loginUser } from "@/src/services/authService";
 import { useGoogleAuth } from "@/src/hooks/useGoogleAuth";
+import { useToast } from "@/src/hooks/useToast";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
 
@@ -46,10 +47,10 @@ const useFadeUp = (delay = 0) => {
 export default function LoginScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const toast = useToast();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const brandAnim = useFadeUp(0);
@@ -58,35 +59,24 @@ export default function LoginScreen() {
 
   const {
     signIn: googleSignIn,
-    handleGoogleResponse,
-    response: googleResponse,
     loading: googleLoading,
-    error: googleError,
     ready: googleReady,
   } = useGoogleAuth();
 
-  useEffect(() => {
-    if (googleResponse?.type === "success") handleGoogleResponse();
-  }, [googleResponse]);
-  useEffect(() => {
-    if (googleError) setError(googleError);
-  }, [googleError]);
-
   const handleLogin = useCallback(async () => {
     if (!email || !password) {
-      setError("Please fill in all fields.");
+      toast.error("Please fill in all fields.");
       return;
     }
-    setError("");
     setLoading(true);
     try {
       await loginUser(email.trim(), password);
     } catch (e: any) {
-      setError(e.message ?? "Login failed. Please try again.");
+      toast.error(e.message ?? "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [email, password]);
+  }, [email, password, toast]);
 
   const isLoading = loading || googleLoading;
 
@@ -141,17 +131,6 @@ export default function LoginScreen() {
         },
         cardSubtitle: { ...Typography.subhead, color: colors.text.tertiary },
         form: { gap: Spacing.md },
-        errorBox: {
-          backgroundColor: colors.accent.redMuted,
-          borderRadius: Radius.sm,
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-        },
-        errorText: {
-          ...Typography.footnote,
-          color: colors.accent.red,
-          textAlign: "center",
-        },
         submitBtn: { marginTop: Spacing.xs },
         dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
         dividerLine: {
@@ -216,10 +195,7 @@ export default function LoginScreen() {
                 <InputField
                   label="Email"
                   value={email}
-                  onChangeText={(t) => {
-                    setEmail(t);
-                    setError("");
-                  }}
+                  onChangeText={setEmail}
                   keyboardType="email-address"
                   placeholder="you@example.com"
                   autoComplete="email"
@@ -227,19 +203,11 @@ export default function LoginScreen() {
                 <InputField
                   label="Password"
                   value={password}
-                  onChangeText={(t) => {
-                    setPassword(t);
-                    setError("");
-                  }}
+                  onChangeText={setPassword}
                   secureTextEntry
                   placeholder="••••••••"
                   autoComplete="password"
                 />
-                {error ? (
-                  <View style={styles.errorBox}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                ) : null}
                 <PrimaryButton
                   label="Sign In"
                   onPress={handleLogin}

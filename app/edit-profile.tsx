@@ -17,6 +17,7 @@ import { InputField } from "@/src/components/ui/InputField";
 import { PrimaryButton } from "@/src/components/ui/PrimaryButton";
 import { useProfile } from "@/src/hooks/useProfile";
 import { useAuthStore } from "@/src/store/authStore";
+import { useToast } from "@/src/hooks/useToast";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
 
@@ -24,6 +25,7 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { user } = useAuthStore();
+  const toast = useToast();
   const {
     updateProfileInfo,
     changePassword,
@@ -34,94 +36,79 @@ export default function EditProfileScreen() {
   const [avatarBase64, setAvatarBase64] = useState<string | null>(
     savedAvatar ?? null,
   );
-  const [profileError, setProfileError] = useState("");
-  const [profileSuccess, setProfileSuccess] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
 
+  // ─── Avatar removal ───────────────────────────────────────────────────────
   const handleRemoveAvatar = useCallback(async () => {
     setAvatarBase64(null);
-    setProfileError("");
-    setProfileSuccess(false);
     setLoadingProfile(true);
     try {
       await updateProfileInfo({ avatarBase64: null });
-      setProfileSuccess(true);
-      setTimeout(() => setProfileSuccess(false), 3000);
+      toast.success("Avatar removed.");
     } catch (e: unknown) {
-      setProfileError(
-        e instanceof Error ? e.message : "Could not remove avatar.",
-      );
+      toast.error(e instanceof Error ? e.message : "Could not remove avatar.");
     } finally {
       setLoadingProfile(false);
     }
-  }, [updateProfileInfo]);
+  }, [updateProfileInfo, toast]);
 
+  // ─── Save profile ─────────────────────────────────────────────────────────
   const handleSaveProfile = useCallback(async () => {
     if (!displayName.trim()) {
-      setProfileError("Display name cannot be empty.");
+      toast.error("Display name cannot be empty.");
       return;
     }
-    setProfileError("");
-    setProfileSuccess(false);
     setLoadingProfile(true);
-    try {
-      await updateProfileInfo({
-        displayName: displayName.trim(),
-        avatarBase64,
-      });
-      setProfileSuccess(true);
-      setTimeout(() => setProfileSuccess(false), 3000);
-    } catch (e: unknown) {
-      setProfileError(
-        e instanceof Error ? e.message : "Could not update profile.",
-      );
-    } finally {
-      setLoadingProfile(false);
-    }
-  }, [displayName, avatarBase64, updateProfileInfo]);
+    await toast.promise(
+      updateProfileInfo({ displayName: displayName.trim(), avatarBase64 }),
+      {
+        loading: "Saving profile...",
+        success: "Profile updated!",
+        error: (e) =>
+          e instanceof Error ? e.message : "Could not update profile.",
+      },
+    );
+    setLoadingProfile(false);
+  }, [displayName, avatarBase64, updateProfileInfo, toast]);
 
+  // ─── Change password ──────────────────────────────────────────────────────
   const handleSavePassword = useCallback(async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError("Please fill in all password fields.");
+      toast.error("Please fill in all password fields.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError("New passwords do not match.");
+      toast.error("New passwords do not match.");
       return;
     }
     if (newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters.");
+      toast.error("New password must be at least 6 characters.");
       return;
     }
     if (currentPassword === newPassword) {
-      setPasswordError("New password must be different from current.");
+      toast.error("New password must be different from current.");
       return;
     }
-    setPasswordError("");
-    setPasswordSuccess(false);
     setLoadingPassword(true);
     try {
-      await changePassword({ currentPassword, newPassword });
-      setPasswordSuccess(true);
+      await toast.promise(changePassword({ currentPassword, newPassword }), {
+        loading: "Updating password...",
+        success: "Password changed successfully!",
+        error: (e) =>
+          e instanceof Error ? e.message : "Could not update password.",
+      });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setTimeout(() => setPasswordSuccess(false), 3000);
-    } catch (e: unknown) {
-      setPasswordError(
-        e instanceof Error ? e.message : "Could not update password.",
-      );
     } finally {
       setLoadingPassword(false);
     }
-  }, [currentPassword, newPassword, confirmPassword, changePassword]);
+  }, [currentPassword, newPassword, confirmPassword, changePassword, toast]);
 
   const styles = useMemo(
     () =>
@@ -181,31 +168,6 @@ export default function EditProfileScreen() {
           borderColor: colors.border,
           gap: Spacing.md,
           ...Shadow.md,
-        },
-        errorBox: {
-          backgroundColor: colors.accent.redMuted,
-          borderRadius: Radius.md,
-          padding: 12,
-          borderWidth: 1,
-          borderColor: colors.accent.red + "20",
-        },
-        errorText: {
-          ...Typography.footnote,
-          color: colors.accent.red,
-          textAlign: "center",
-        },
-        successBox: {
-          backgroundColor: colors.accent.greenMuted,
-          borderRadius: Radius.md,
-          padding: 12,
-          borderWidth: 1,
-          borderColor: colors.accent.green + "20",
-        },
-        successText: {
-          ...Typography.footnote,
-          color: colors.accent.green,
-          textAlign: "center",
-          fontWeight: "500",
         },
       }),
     [colors],
@@ -272,27 +234,11 @@ export default function EditProfileScreen() {
               <InputField
                 label="Display Name"
                 value={displayName}
-                onChangeText={(t) => {
-                  setDisplayName(t);
-                  setProfileError("");
-                  setProfileSuccess(false);
-                }}
+                onChangeText={setDisplayName}
                 placeholder="Your name"
                 autoCapitalize="words"
                 autoComplete="name"
               />
-              {profileError ? (
-                <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>{profileError}</Text>
-                </View>
-              ) : null}
-              {profileSuccess ? (
-                <View style={styles.successBox}>
-                  <Text style={styles.successText}>
-                    Profile updated successfully ✓
-                  </Text>
-                </View>
-              ) : null}
               <PrimaryButton
                 label="Save Changes"
                 onPress={handleSaveProfile}
@@ -311,11 +257,7 @@ export default function EditProfileScreen() {
               <InputField
                 label="Current Password"
                 value={currentPassword}
-                onChangeText={(t) => {
-                  setCurrentPassword(t);
-                  setPasswordError("");
-                  setPasswordSuccess(false);
-                }}
+                onChangeText={setCurrentPassword}
                 secureTextEntry
                 placeholder="••••••••"
                 autoComplete="password"
@@ -323,11 +265,7 @@ export default function EditProfileScreen() {
               <InputField
                 label="New Password"
                 value={newPassword}
-                onChangeText={(t) => {
-                  setNewPassword(t);
-                  setPasswordError("");
-                  setPasswordSuccess(false);
-                }}
+                onChangeText={setNewPassword}
                 secureTextEntry
                 placeholder="Min. 6 characters"
                 autoComplete="new-password"
@@ -335,27 +273,11 @@ export default function EditProfileScreen() {
               <InputField
                 label="Confirm New Password"
                 value={confirmPassword}
-                onChangeText={(t) => {
-                  setConfirmPassword(t);
-                  setPasswordError("");
-                  setPasswordSuccess(false);
-                }}
+                onChangeText={setConfirmPassword}
                 secureTextEntry
                 placeholder="Repeat new password"
                 autoComplete="new-password"
               />
-              {passwordError ? (
-                <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>{passwordError}</Text>
-                </View>
-              ) : null}
-              {passwordSuccess ? (
-                <View style={styles.successBox}>
-                  <Text style={styles.successText}>
-                    Password changed successfully ✓
-                  </Text>
-                </View>
-              ) : null}
               <PrimaryButton
                 label="Update Password"
                 onPress={handleSavePassword}

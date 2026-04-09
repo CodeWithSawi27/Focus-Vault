@@ -27,6 +27,7 @@ import {
 import { useProfile } from "@/src/hooks/useProfile";
 import { useAppLock } from "@/src/hooks/useAppLock";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useToast } from "@/src/hooks/useToast";
 import { ProfileAvatar } from "@/src/components/profile/ProfileAvatar";
 import { ProfileStats } from "@/src/components/profile/ProfileStats";
 import { ProfileMenuSection } from "@/src/components/profile/ProfileMenuSection";
@@ -42,12 +43,15 @@ export default function ProfileScreen() {
   const { reset: resetOnboarding } = useOnboardingStore();
   const { isEnabled: appLockEnabled } = useAppLock();
   const { colors, preference, setPreference } = useTheme();
+  const toast = useToast();
   const router = useRouter();
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
 
+  // Keep Alert for sign-out confirmation — it's a destructive action
+  // that benefits from a native modal rather than a dismissable toast
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
@@ -149,11 +153,11 @@ export default function ProfileScreen() {
         icon: RefreshCw,
         onPress: async () => {
           await resetOnboarding();
-          Alert.alert("Done", "Restart the app to see onboarding.");
+          toast.info("Restart the app to see onboarding.");
         },
       },
     ],
-    [appLockEnabled],
+    [appLockEnabled, toast],
   );
 
   const dangerItems: MenuItem[] = useMemo(

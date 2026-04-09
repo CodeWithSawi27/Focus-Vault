@@ -1,147 +1,227 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/src/services/supabase';
-import { useAuthStore } from '@/src/store/authStore';
-import { useHabitStore } from '@/src/store/habitStore';
-import { calculateStreak } from '@/src/utils/streakCalculator';
+import { useState, useEffect, useCallback } from "react";
+import NetInfo from "@react-native-community/netinfo";
+import { supabase } from "@/src/services/supabase";
+import { syncQueue } from "@/src/services/syncQueue";
+import { useAuthStore } from "@/src/store/authStore";
+import { useHabitStore } from "@/src/store/habitStore";
+import { useToast } from "@/src/hooks/useToast";
+import { calculateStreak } from "@/src/utils/streakCalculator";
 import {
   scheduleHabitReminder,
   cancelHabitReminder,
-} from '@/src/services/notifications';
-import type { Habit } from '@/src/types';
+} from "@/src/services/notifications";
+import type { Habit } from "@/src/types";
 
 export interface CreateHabitPayload {
   name: string;
   description?: string;
-  frequency: 'daily' | 'weekly';
+  frequency: "daily" | "weekly";
   reminder_time?: string | null;
 }
+
+const isNetworkAvailable = async (): Promise<boolean> => {
+  const state = await NetInfo.fetch();
+  return !!(state.isConnected && state.isInternetReachable);
+};
 
 export const useHabits = () => {
   const { user } = useAuthStore();
   const { setHabits, setLoading, habits, loading } = useHabitStore();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
 
   const fetchHabits = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data, error: fetchError } = await supabase
-      .from('habits')
-      .select('*')
-      .eq('user_id', user.uid)
-      .order('created_at', { ascending: true });
+      .from("habits")
+      .select("*")
+      .eq("user_id", user.uid)
+      .order("created_at", { ascending: true });
 
     if (fetchError) setError(fetchError.message);
     else setHabits((data as Habit[]) ?? []);
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { fetchHabits(); }, [fetchHabits]);
+  useEffect(() => {
+    fetchHabits();
+  }, [fetchHabits]);
 
-  const createHabit = useCallback(async (payload: CreateHabitPayload) => {
-    if (!user) return;
+  // ─── Create — full promise flow ───────────────────────────────────────────
+  const createHabit = useCallback(
+    async (payload: CreateHabitPayload) => {
+      if (!user) return;
 
-    const { data, error: insertError } = await supabase
-      .from('habits')
-      .insert({
-        user_id: user.uid,
-        name: payload.name.trim(),
-        description: payload.description?.trim() ?? null,
-        frequency: payload.frequency,
-        reminder_time: payload.reminder_time ?? null,
-      })
-      .select()
-      .single();
+      await toast.promise(
+        (async () => {
+          const { data, error: insertError } = await supabase
+            .from("habits")
+            .insert({
+              user_id: user.uid,
+              name: payload.name.trim(),
+              description: payload.description?.trim() ?? null,
+              frequency: payload.frequency,
+              reminder_time: payload.reminder_time ?? null,
+            })
+            .select()
+            .single();
 
-    if (insertError) throw new Error(insertError.message);
+          if (insertError) throw new Error(insertError.message);
 
-    if (data && payload.reminder_time) {
-      await scheduleHabitReminder({
-        habitId: data.id,
-        habitName: data.name,
-        reminderTime: payload.reminder_time,
-        streak: 0,
-        incompleteCount: 1,
-      });
-    }
+          if (data && payload.reminder_time) {
+            await scheduleHabitReminder({
+              habitId: data.id,
+              habitName: data.name,
+              reminderTime: payload.reminder_time,
+              streak: 0,
+              incompleteCount: 1,
+            });
+          }
 
-    await fetchHabits();
-  }, [user, fetchHabits]);
+          await fetchHabits();
+        })(),
+        {
+          loading: "Creating habit...",
+          success: "Habit created!",
+          error: (e) =>
+            e instanceof Error ? e.message : "Failed to create habit.",
+        },
+      );
+    },
+    [user, fetchHabits, toast],
+  );
 
-  const updateHabit = useCallback(async (
-    habitId: string,
-    payload: Partial<CreateHabitPayload>
-  ) => {
-    const { error: updateError } = await supabase
-      .from('habits')
-      .update({
-        name: payload.name?.trim(),
-        description: payload.description?.trim() ?? null,
-        frequency: payload.frequency,
-        reminder_time: payload.reminder_time ?? null,
-      })
-      .eq('id', habitId);
+  // ─── Update ───────────────────────────────────────────────────────────────
+  const updateHabit = useCallback(
+    async (habitId: string, payload: Partial<CreateHabitPayload>) => {
+      const online = await isNetworkAvailable();
 
-    if (updateError) throw new Error(updateError.message);
-
-    if (payload.reminder_time !== undefined) {
-      if (payload.reminder_time) {
-        await scheduleHabitReminder({
-          habitId,
-          habitName: payload.name ?? '',
-          reminderTime: payload.reminder_time,
-          streak: 0,
-          incompleteCount: 1,
+      if (!online) {
+        await syncQueue.push("habit_update", {
+          id: habitId,
+          name: payload.name?.trim(),
+          description: payload.description?.trim() ?? null,
+          frequency: payload.frequency,
+          reminder_time: payload.reminder_time ?? null,
         });
-      } else {
-        await cancelHabitReminder(habitId);
+        toast.info("You're offline — changes will sync when reconnected.", {
+          duration: 3000,
+        });
+        return;
       }
-    }
 
-    await fetchHabits();
-  }, [fetchHabits]);
+      await toast.promise(
+        (async () => {
+          const { error: updateError } = await supabase
+            .from("habits")
+            .update({
+              name: payload.name?.trim(),
+              description: payload.description?.trim() ?? null,
+              frequency: payload.frequency,
+              reminder_time: payload.reminder_time ?? null,
+            })
+            .eq("id", habitId);
 
-  const deleteHabit = useCallback(async (habitId: string) => {
-    await cancelHabitReminder(habitId);
+          if (updateError) {
+            await syncQueue.push("habit_update", { id: habitId, ...payload });
+            throw new Error(updateError.message);
+          }
 
-    const { error: deleteError } = await supabase
-      .from('habits')
-      .delete()
-      .eq('id', habitId);
+          if (payload.reminder_time !== undefined) {
+            if (payload.reminder_time) {
+              await scheduleHabitReminder({
+                habitId,
+                habitName: payload.name ?? "",
+                reminderTime: payload.reminder_time,
+                streak: 0,
+                incompleteCount: 1,
+              });
+            } else {
+              await cancelHabitReminder(habitId);
+            }
+          }
 
-    if (deleteError) throw new Error(deleteError.message);
-    await fetchHabits();
-  }, [fetchHabits]);
+          await fetchHabits();
+        })(),
+        {
+          loading: "Saving changes...",
+          success: "Habit updated!",
+          error: (e) =>
+            e instanceof Error ? e.message : "Failed to update habit.",
+        },
+      );
+    },
+    [fetchHabits, toast],
+  );
 
+  // ─── Delete ───────────────────────────────────────────────────────────────
+  const deleteHabit = useCallback(
+    async (habitId: string) => {
+      await cancelHabitReminder(habitId);
+      const online = await isNetworkAvailable();
+
+      if (!online) {
+        await syncQueue.push("habit_delete", { id: habitId });
+        setHabits(habits.filter((h) => h.id !== habitId));
+        toast.info("You're offline — deletion will sync when reconnected.", {
+          duration: 3000,
+        });
+        return;
+      }
+
+      const { error: deleteError } = await supabase
+        .from("habits")
+        .delete()
+        .eq("id", habitId);
+
+      if (deleteError) {
+        await syncQueue.push("habit_delete", { id: habitId });
+        toast.error("Failed to delete habit. Will retry when online.");
+        return;
+      }
+
+      toast.success("Habit deleted.", { duration: 2500 });
+      await fetchHabits();
+    },
+    [fetchHabits, habits, setHabits, toast],
+  );
+
+  // ─── Streak recalculation (internal, no toast) ────────────────────────────
   const recalculateStreak = useCallback(async (habitId: string) => {
     const { data: logs } = await supabase
-      .from('habit_logs')
-      .select('completed_at')
-      .eq('habit_id', habitId)
-      .order('completed_at', { ascending: false });
+      .from("habit_logs")
+      .select("completed_at")
+      .eq("habit_id", habitId)
+      .order("completed_at", { ascending: false });
 
     if (!logs) return;
 
     const streak = calculateStreak(
-      logs.map(l => l.completed_at).filter(Boolean) as string[]
+      logs.map((l) => l.completed_at).filter(Boolean) as string[],
     );
 
     const { data: habitData } = await supabase
-      .from('habits')
-      .select('longest_streak, name, reminder_time')
-      .eq('id', habitId)
+      .from("habits")
+      .select("longest_streak, name, reminder_time")
+      .eq("id", habitId)
       .single();
 
     const currentLongest =
-      (habitData as Pick<Habit, 'longest_streak' | 'name' | 'reminder_time'> | null)
-        ?.longest_streak ?? 0;
+      (
+        habitData as Pick<
+          Habit,
+          "longest_streak" | "name" | "reminder_time"
+        > | null
+      )?.longest_streak ?? 0;
 
     await supabase
-      .from('habits')
+      .from("habits")
       .update({
         streak,
         longest_streak: Math.max(streak, currentLongest),
       })
-      .eq('id', habitId);
+      .eq("id", habitId);
 
     if (habitData?.reminder_time) {
       await scheduleHabitReminder({
@@ -154,37 +234,61 @@ export const useHabits = () => {
     }
   }, []);
 
-  const toggleHabitCompletion = useCallback(async (habitId: string) => {
-    if (!user) return;
+  // ─── Toggle completion ────────────────────────────────────────────────────
+  const toggleHabitCompletion = useCallback(
+    async (habitId: string) => {
+      if (!user) return;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
 
-    const { data: existingLogs } = await supabase
-      .from('habit_logs')
-      .select('id')
-      .eq('habit_id', habitId)
-      .eq('user_id', user.uid)
-      .gte('completed_at', today.toISOString())
-      .lte('completed_at', todayEnd.toISOString());
+      const online = await isNetworkAvailable();
 
-    if (existingLogs && existingLogs.length > 0) {
-      await supabase
-        .from('habit_logs')
-        .delete()
-        .eq('id', existingLogs[0].id);
-    } else {
-      await supabase
-        .from('habit_logs')
-        .insert({ habit_id: habitId, user_id: user.uid });
-    }
+      if (!online) {
+        await syncQueue.push("habit_completion", {
+          habit_id: habitId,
+          user_id: user.uid,
+          completed_date: today.toISOString().split("T")[0],
+          completed: true,
+        });
+        toast.info("Offline — completion queued.", { duration: 2000 });
+        return;
+      }
 
-    // ✅ Recalculate then refresh in sequence — no race condition
-    await recalculateStreak(habitId);
-    await fetchHabits();
-  }, [user, fetchHabits, recalculateStreak]);
+      const { data: existingLogs } = await supabase
+        .from("habit_logs")
+        .select("id")
+        .eq("habit_id", habitId)
+        .eq("user_id", user.uid)
+        .gte("completed_at", today.toISOString())
+        .lte("completed_at", todayEnd.toISOString());
+
+      if (existingLogs && existingLogs.length > 0) {
+        await supabase.from("habit_logs").delete().eq("id", existingLogs[0].id);
+      } else {
+        const { error: logError } = await supabase
+          .from("habit_logs")
+          .insert({ habit_id: habitId, user_id: user.uid });
+
+        if (logError) {
+          await syncQueue.push("habit_completion", {
+            habit_id: habitId,
+            user_id: user.uid,
+            completed_date: today.toISOString().split("T")[0],
+            completed: true,
+          });
+          toast.error("Could not save completion — queued for retry.");
+          return;
+        }
+      }
+
+      await recalculateStreak(habitId);
+      await fetchHabits();
+    },
+    [user, fetchHabits, recalculateStreak, toast],
+  );
 
   return {
     habits,

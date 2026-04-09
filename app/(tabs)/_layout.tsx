@@ -9,6 +9,7 @@ import {
 } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Platform, View, StyleSheet } from "react-native";
+import { OfflineBanner } from "@/src/components/ui/OfflineBanner";
 
 interface TabIconProps {
   Icon: React.ElementType;
@@ -62,42 +63,49 @@ export default function TabLayout() {
     );
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.text.primary,
-        tabBarInactiveTintColor: colors.text.tertiary,
-        tabBarLabelStyle: staticStyles.label,
-        tabBarStyle: [staticStyles.tabBar, tabBarStyle],
-        tabBarItemStyle: staticStyles.tabItem,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{ title: "Dashboard", tabBarIcon: makeIcon(LayoutDashboard) }}
-      />
-      <Tabs.Screen
-        name="habits"
-        options={{ title: "Habits", tabBarIcon: makeIcon(ListChecks) }}
-      />
-      <Tabs.Screen
-        name="focus"
-        options={{ title: "Focus", tabBarIcon: makeIcon(Timer) }}
-      />
-      <Tabs.Screen
-        name="analytics"
-        options={{ title: "Analytics", tabBarIcon: makeIcon(BarChart2) }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: "Profile", tabBarIcon: makeIcon(UserCircle) }}
-      />
-    </Tabs>
+    // Fragment wraps both the offline banner and tabs
+    // Banner sits above the navigator at zIndex: 1000
+    <>
+      <OfflineBanner />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarActiveTintColor: colors.text.primary,
+          tabBarInactiveTintColor: colors.text.tertiary,
+          tabBarLabelStyle: staticStyles.label,
+          tabBarStyle: [staticStyles.tabBar, tabBarStyle],
+          tabBarItemStyle: staticStyles.tabItem,
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Dashboard",
+            tabBarIcon: makeIcon(LayoutDashboard),
+          }}
+        />
+        <Tabs.Screen
+          name="habits"
+          options={{ title: "Habits", tabBarIcon: makeIcon(ListChecks) }}
+        />
+        <Tabs.Screen
+          name="focus"
+          options={{ title: "Focus", tabBarIcon: makeIcon(Timer) }}
+        />
+        <Tabs.Screen
+          name="analytics"
+          options={{ title: "Analytics", tabBarIcon: makeIcon(BarChart2) }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{ title: "Profile", tabBarIcon: makeIcon(UserCircle) }}
+        />
+      </Tabs>
+    </>
   );
 }
 
-// Static styles — never change with theme
 const staticStyles = StyleSheet.create({
   tabBar: {
     borderTopWidth: StyleSheet.hairlineWidth,

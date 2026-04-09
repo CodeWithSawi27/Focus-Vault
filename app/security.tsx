@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -21,6 +20,7 @@ import {
 import * as LocalAuthentication from "expo-local-authentication";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useAppLock } from "@/src/hooks/useAppLock";
+import { useToast } from "@/src/hooks/useToast";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
 
@@ -47,6 +47,7 @@ const HOW_ITEMS = [
 export default function SecurityScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const toast = useToast();
   const { isEnabled, enableAppLock, disableAppLock, getBiometricType } =
     useAppLock();
 
@@ -67,31 +68,36 @@ export default function SecurityScreen() {
   const handleToggle = useCallback(async () => {
     if (toggling) return;
     setToggling(true);
+
     if (isEnabled) {
       const success = await disableAppLock();
-      if (!success)
-        Alert.alert(
-          "Authentication Failed",
+      if (!success) {
+        toast.error(
           "Could not verify your identity.\n\nTip: Go to Settings → Expo Go → Face ID and make sure it is enabled.",
         );
+      } else {
+        toast.success("App Lock disabled.");
+      }
     } else {
       if (!isEnrolled) {
-        Alert.alert(
-          "Biometrics Not Set Up",
+        toast.warning(
           "Please set up Face ID or Touch ID in your device Settings first.",
         );
         setToggling(false);
         return;
       }
       const success = await enableAppLock();
-      if (!success)
-        Alert.alert(
-          "Authentication Failed",
+      if (!success) {
+        toast.error(
           "Could not verify your identity.\n\nTip: Go to Settings → Expo Go → Face ID and make sure it is enabled.",
         );
+      } else {
+        toast.success("App Lock enabled.");
+      }
     }
+
     setToggling(false);
-  }, [isEnabled, isEnrolled, toggling, enableAppLock, disableAppLock]);
+  }, [isEnabled, isEnrolled, toggling, enableAppLock, disableAppLock, toast]);
 
   const biometricLabel =
     biometricType === "faceid"
@@ -99,6 +105,7 @@ export default function SecurityScreen() {
       : biometricType === "touchid"
         ? "Touch ID"
         : "Biometrics";
+
   const BiometricIcon = biometricType === "faceid" ? ScanFace : Fingerprint;
   const getHowItemIcon = (key: string) =>
     key === "lock" ? Lock : key === "biometric" ? BiometricIcon : ShieldCheck;
