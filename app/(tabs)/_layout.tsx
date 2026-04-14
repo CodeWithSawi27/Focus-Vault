@@ -3,6 +3,7 @@ import { Tabs } from "expo-router";
 import {
   LayoutDashboard,
   ListChecks,
+  CheckSquare,
   Timer,
   BarChart2,
   UserCircle,
@@ -88,6 +89,10 @@ export default function TabLayout() {
         <Tabs.Screen
           name="habits"
           options={{ title: "Habits", tabBarIcon: makeIcon(ListChecks) }}
+        />
+        <Tabs.Screen
+          name="tasks"
+          options={{ title: "Tasks", tabBarIcon: makeIcon(CheckSquare) }}
         />
         <Tabs.Screen
           name="focus"

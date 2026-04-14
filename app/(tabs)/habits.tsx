@@ -15,7 +15,8 @@ import { useHabits, CreateHabitPayload } from "@/src/hooks/useHabits";
 import { useAuthStore } from "@/src/store/authStore";
 import { HabitList } from "@/src/components/habits/HabitList";
 import { AddHabitModal } from "@/src/components/habits/AddHabitModal";
-import { Typography, Shadow } from "@/src/constants/theme";
+import { HABIT_CATEGORIES, type HabitCategoryId } from "@/src/constants/categories";
+import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
 import type { Habit } from "@/src/types";
 import { supabase } from "@/src/services/supabase";
@@ -36,6 +37,7 @@ export default function HabitsScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<HabitCategoryId | "all">("all");
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(
     new Set(),
   );
@@ -43,6 +45,11 @@ export default function HabitsScreen() {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const filteredHabits = useMemo(() => {
+    if (selectedCategoryId === "all") return habits;
+    return habits.filter((h) => h.category_id === selectedCategoryId);
+  }, [habits, selectedCategoryId]);
 
   const fetchTodayCompletions = useCallback(async () => {
     if (!user) return;
@@ -204,6 +211,33 @@ export default function HabitsScreen() {
           color: colors.text.inverse,
           lineHeight: 28,
         },
+        categoryScroll: {
+          paddingHorizontal: Layout.screenPadding,
+          paddingBottom: Spacing.md,
+          flexGrow: 0,
+        },
+        categoryItem: {
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          borderRadius: Radius.full,
+          backgroundColor: colors.surface,
+          marginRight: 8,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        categoryItemActive: {
+          backgroundColor: colors.primary,
+          borderColor: colors.primary,
+          ...Shadow.sm,
+        },
+        categoryLabel: {
+          ...Typography.footnote,
+          color: colors.text.secondary,
+          fontWeight: "600",
+        },
+        categoryLabelActive: {
+          color: colors.text.inverse,
+        },
         scroll: {
           paddingHorizontal: Layout.screenPadding,
           paddingBottom: 32,
@@ -233,6 +267,55 @@ export default function HabitsScreen() {
         </View>
 
         <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryScroll}
+          contentContainerStyle={{ paddingRight: Layout.screenPadding }}
+        >
+          <TouchableOpacity
+            style={[
+              styles.categoryItem,
+              selectedCategoryId === "all" && styles.categoryItemActive,
+            ]}
+            onPress={() => setSelectedCategoryId("all")}
+          >
+            <Text
+              style={[
+                styles.categoryLabel,
+                selectedCategoryId === "all" && styles.categoryLabelActive,
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+          {HABIT_CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[
+                styles.categoryItem,
+                selectedCategoryId === cat.id && styles.categoryItemActive,
+              ]}
+              onPress={() => setSelectedCategoryId(cat.id)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <cat.icon 
+                  size={14} 
+                  color={selectedCategoryId === cat.id ? colors.text.inverse : colors.text.secondary} 
+                />
+                <Text
+                  style={[
+                    styles.categoryLabel,
+                    selectedCategoryId === cat.id && styles.categoryLabelActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <ScrollView
           scrollEnabled={scrollEnabled}
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
@@ -245,7 +328,7 @@ export default function HabitsScreen() {
           }
         >
           <HabitList
-            habits={habits}
+            habits={filteredHabits}
             completedTodayIds={completedTodayIds}
             togglingIds={togglingIds}
             deletingIds={deletingIds}

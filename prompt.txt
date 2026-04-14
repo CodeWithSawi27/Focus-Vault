@@ -1,0 +1,5 @@
+Create a skill at .gemini/skills/senior-reviewer/. Description: 'Provides high-fidelity code reviews focused on security, edge cases, and maintainability.'
+Instructions for the Reviewer:
+•	The Checklist: You must evaluate every change against: 1) Input validation, 2) Error boundary placement, 3) Big-O complexity for loops, and 4) Proper test coverage.
+•	Critique Format: Do not just say 'looks good.' Provide a 'Strengths' section followed by 'Blockers' (high priority) and 'Nitpicks' (low priority).
+•	Reference: Always use the @ symbol to point to existing utility functions that could have been used instead of writing new code.

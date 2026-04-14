@@ -25,9 +25,11 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { InputField } from "@/src/components/ui/InputField";
 import { PrimaryButton } from "@/src/components/ui/PrimaryButton";
 import { HabitFrequencyPicker } from "./HabitFrequencyPicker";
+import { HabitCategoryPicker } from "./HabitCategoryPicker";
 import { ReminderTimePicker } from "./ReminderTimePicker";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Spacing } from "@/src/constants/spacing";
+import type { HabitCategoryId } from "@/src/constants/categories";
 import type { CreateHabitPayload } from "@/src/hooks/useHabits";
 import type { Habit } from "@/src/types";
 
@@ -49,6 +51,7 @@ export const AddHabitModal = ({
   const { colors } = useTheme();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [category_id, setCategoryId] = useState<HabitCategoryId | null>(null);
   const [frequency, setFrequency] = useState<"daily" | "weekly">("daily");
   const [reminderTime, setReminderTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -117,11 +120,13 @@ export const AddHabitModal = ({
       if (editingHabit) {
         setName(editingHabit.name);
         setDescription(editingHabit.description ?? "");
+        setCategoryId(editingHabit.category_id ?? null);
         setFrequency(editingHabit.frequency);
         setReminderTime(editingHabit.reminder_time ?? null);
       } else {
         setName("");
         setDescription("");
+        setCategoryId(null);
         setFrequency("daily");
         setReminderTime(null);
       }
@@ -147,6 +152,7 @@ export const AddHabitModal = ({
       await onSubmit({
         name,
         description,
+        category_id,
         frequency,
         reminder_time: reminderTime,
       });
@@ -156,7 +162,7 @@ export const AddHabitModal = ({
     } finally {
       setLoading(false);
     }
-  }, [name, description, frequency, reminderTime, onSubmit, handleDismiss]);
+  }, [name, description, category_id, frequency, reminderTime, onSubmit, handleDismiss]);
 
   const styles = useMemo(
     () =>
@@ -319,6 +325,14 @@ export const AddHabitModal = ({
                     numberOfLines={3}
                     style={styles.textArea}
                   />
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Category</Text>
+                    <HabitCategoryPicker
+                      value={category_id}
+                      onChange={setCategoryId}
+                    />
+                  </View>
 
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Frequency</Text>

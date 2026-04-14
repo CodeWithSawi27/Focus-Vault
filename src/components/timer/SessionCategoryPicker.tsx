@@ -98,7 +98,10 @@ export const SessionCategoryPicker = ({
               activeOpacity={0.7}
               disabled={disabled}
             >
-              <Text style={styles.emoji}>{cat.emoji}</Text>
+              <cat.icon 
+                size={14} 
+                color={active ? colors.text.inverse : colors.text.secondary} 
+              />
               <Text
                 style={[styles.chipLabel, active && styles.chipLabelActive]}
               >

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { BlurView } from "expo-blur";
 import { useTheme } from "@/src/context/ThemeContext";
+import { getHabitCategoryById } from "@/src/constants/categories";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Spacing } from "@/src/constants/spacing";
 import type { Habit } from "@/src/types";
@@ -22,6 +23,7 @@ export const HabitCard = ({
   onDelete,
 }: HabitCardProps) => {
   const { colors, isDark } = useTheme();
+  const category = getHabitCategoryById(habit.category_id);
 
   const styles = useMemo(
     () =>
@@ -34,7 +36,10 @@ export const HabitCard = ({
           flexDirection: "row",
           ...Shadow.sm,
         },
-        accentBar: { width: 3, backgroundColor: colors.border },
+        accentBar: {
+          width: 3,
+          backgroundColor: category?.color ?? colors.border,
+        },
         accentBarDone: { backgroundColor: colors.accent.green },
         blur: { flex: 1 },
         inner: {
@@ -87,6 +92,24 @@ export const HabitCard = ({
           gap: 6,
           marginTop: 1,
         },
+        categoryBadge: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 3,
+          backgroundColor: (category?.color ?? colors.border) + "15",
+          paddingHorizontal: 6,
+          paddingVertical: 1,
+          borderRadius: 4,
+        },
+        categoryEmoji: {
+          fontSize: 10,
+        },
+        categoryLabel: {
+          ...Typography.caption,
+          color: category?.color ?? colors.text.secondary,
+          fontWeight: "600",
+          fontSize: 10,
+        },
         streak: {
           ...Typography.caption,
           color: colors.text.tertiary,
@@ -135,7 +158,8 @@ export const HabitCard = ({
           pointerEvents: "none",
         },
       }),
-    [colors, isDark],
+
+    [colors, isDark, category],
   );
 
   return (
@@ -173,6 +197,15 @@ export const HabitCard = ({
               </Text>
             ) : null}
             <View style={styles.meta}>
+              {category && (
+                <>
+                  <View style={styles.categoryBadge}>
+                    <category.icon size={10} color={category.color} />
+                    <Text style={styles.categoryLabel}>{category.label}</Text>
+                  </View>
+                  <View style={styles.dot} />
+                </>
+              )}
               <Text style={styles.streak}>
                 {habit.streak > 0
                   ? `${habit.streak} day streak`

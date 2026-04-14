@@ -10,11 +10,13 @@ import {
   scheduleHabitReminder,
   cancelHabitReminder,
 } from "@/src/services/notifications";
+import type { HabitCategoryId } from "@/src/constants/categories";
 import type { Habit } from "@/src/types";
 
 export interface CreateHabitPayload {
   name: string;
   description?: string;
+  category_id?: HabitCategoryId | null;
   frequency: "daily" | "weekly";
   reminder_time?: string | null;
 }
@@ -61,6 +63,7 @@ export const useHabits = () => {
               user_id: user.uid,
               name: payload.name.trim(),
               description: payload.description?.trim() ?? null,
+              category_id: payload.category_id ?? null,
               frequency: payload.frequency,
               reminder_time: payload.reminder_time ?? null,
             })
@@ -102,6 +105,7 @@ export const useHabits = () => {
           id: habitId,
           name: payload.name?.trim(),
           description: payload.description?.trim() ?? null,
+          category_id: payload.category_id ?? null,
           frequency: payload.frequency,
           reminder_time: payload.reminder_time ?? null,
         });
@@ -118,6 +122,7 @@ export const useHabits = () => {
             .update({
               name: payload.name?.trim(),
               description: payload.description?.trim() ?? null,
+              category_id: payload.category_id ?? null,
               frequency: payload.frequency,
               reminder_time: payload.reminder_time ?? null,
             })
