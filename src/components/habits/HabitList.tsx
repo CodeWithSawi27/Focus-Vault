@@ -1,6 +1,9 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Image } from "react-native";
 import { Layers } from "lucide-react-native";
+
+const MASCOT_EMPTY = require("@/assets/mascots/mascot_empty.png");
+const MASCOT_LOADING = require("@/assets/mascots/mascot_loading.png");
 import { useTheme } from "@/src/context/ThemeContext";
 import { SwipeableHabitRow } from "./SwipeableHabitRow";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
@@ -63,17 +66,14 @@ export const HabitList = ({
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          paddingTop: 80,
-          gap: 10,
+          paddingTop: 60,
+          gap: 12,
         },
-        emptyIcon: {
-          width: 60,
-          height: 60,
-          borderRadius: 30,
-          backgroundColor: colors.surface,
-          justifyContent: "center",
-          alignItems: "center",
-          marginBottom: 4,
+        mascot: {
+          width: 120,
+          height: 120,
+          marginBottom: 8,
+          resizeMode: "contain",
         },
         emptyTitle: {
           fontSize: 17,
@@ -85,7 +85,7 @@ export const HabitList = ({
           color: colors.text.tertiary,
           textAlign: "center",
           paddingHorizontal: 40,
-          lineHeight: 20,
+          lineHeight: 22,
         },
       }),
     [colors],
@@ -94,7 +94,8 @@ export const HabitList = ({
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.text.tertiary} size="small" />
+        <Image source={MASCOT_LOADING} style={styles.mascot} />
+        <Text style={styles.emptySubtitle}>Loading habits...</Text>
       </View>
     );
   }
@@ -102,9 +103,7 @@ export const HabitList = ({
   if (habits.length === 0) {
     return (
       <View style={styles.empty}>
-        <View style={styles.emptyIcon}>
-          <Layers size={28} color={colors.text.tertiary} strokeWidth={1.5} />
-        </View>
+        <Image source={MASCOT_EMPTY} style={styles.mascot} />
         <Text style={styles.emptyTitle}>No habits yet</Text>
         <Text style={styles.emptySubtitle}>
           Tap the + button to create your first habit

@@ -5,6 +5,8 @@ import { Flame } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 
+const MASCOT_WELCOME = require("@/assets/mascots/mascot_welcome.png");
+
 interface DashboardHeaderProps {
   greeting: string;
   formattedDate: string;
@@ -44,6 +46,8 @@ export const DashboardHeader = ({
           justifyContent: "space-between",
         },
         greetingBlock: { gap: 3, flex: 1 },
+        greetingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+        mascot: { width: 32, height: 32, resizeMode: "contain" },
         date: {
           ...Typography.footnote,
           color: colors.text.tertiary,
@@ -116,9 +120,12 @@ export const DashboardHeader = ({
       <View style={styles.topRow}>
         <View style={styles.greetingBlock}>
           <Text style={styles.date}>{formattedDate}</Text>
-          <Text style={styles.greeting}>
-            {greeting}, {firstName}
-          </Text>
+          <View style={styles.greetingRow}>
+            <Text style={styles.greeting}>
+              {greeting}, {firstName}
+            </Text>
+            <Image source={MASCOT_WELCOME} style={styles.mascot} />
+          </View>
         </View>
         <TouchableOpacity
           style={styles.avatarWrap}

@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   RefreshControl,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -23,6 +24,8 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useNotificationSettings } from "@/src/hooks/useNotificationSettings";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
+
+const MASCOT_EMPTY = require("@/assets/mascots/mascot_empty.png");
 
 const formatTime = (hour: number, minute: number): string => {
   const period = hour >= 12 ? "PM" : "AM";
@@ -175,10 +178,15 @@ export default function NotificationsSettingsScreen() {
           borderRadius: Radius.xl,
           padding: Spacing.xl,
           alignItems: "center",
-          gap: 8,
+          gap: 12,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: colors.border,
           ...Shadow.sm,
+        },
+        mascot: {
+          width: 100,
+          height: 100,
+          resizeMode: "contain",
         },
         emptyTitle: {
           ...Typography.headline,
@@ -343,7 +351,7 @@ export default function NotificationsSettingsScreen() {
 
         {enabled && permissionGranted && scheduledReminders.length === 0 && (
           <View style={styles.emptyCard}>
-            <Bell size={28} color={colors.text.tertiary} strokeWidth={1.5} />
+            <Image source={MASCOT_EMPTY} style={styles.mascot} />
             <Text style={styles.emptyTitle}>No reminders set</Text>
             <Text style={styles.emptySubtitle}>
               Add a reminder time to your habits in the Habits tab to see them

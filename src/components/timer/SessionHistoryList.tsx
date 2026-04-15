@@ -1,6 +1,8 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Clock } from "lucide-react-native";
+
+const MASCOT_EMPTY = require("@/assets/mascots/mascot_empty.png");
 import { useTheme } from "@/src/context/ThemeContext";
 import { getCategoryById } from "@/src/constants/categories";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
@@ -109,7 +111,12 @@ export const SessionHistoryList = ({
           alignSelf: "stretch",
           alignItems: "center",
           paddingVertical: Spacing.xl,
-          gap: 6,
+          gap: 12,
+        },
+        mascot: {
+          width: 100,
+          height: 100,
+          resizeMode: "contain",
         },
         emptyText: {
           ...Typography.callout,
@@ -128,7 +135,7 @@ export const SessionHistoryList = ({
   if (sessions.length === 0) {
     return (
       <View style={styles.empty}>
-        <Clock size={22} color={colors.text.tertiary} strokeWidth={1.5} />
+        <Image source={MASCOT_EMPTY} style={styles.mascot} />
         <Text style={styles.emptyText}>No sessions yet</Text>
         <Text style={styles.emptySubtext}>
           Complete your first session to see history

@@ -1,7 +1,9 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AlertTriangle, RefreshCw } from "lucide-react-native";
+
+const MASCOT_ERROR = require("@/assets/mascots/mascot_error.png");
 import { useTheme } from "@/src/context/ThemeContext";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Spacing } from "@/src/constants/spacing";
@@ -34,12 +36,15 @@ export const ErrorFallback = ({
           gap: Spacing.lg,
         },
         iconWrap: {
-          width: 64,
-          height: 64,
-          borderRadius: Radius.xl,
-          backgroundColor: colors.accent.redMuted,
+          width: 120,
+          height: 120,
           alignItems: "center",
           justifyContent: "center",
+        },
+        mascot: {
+          width: 120,
+          height: 120,
+          resizeMode: "contain",
         },
         title: {
           ...Typography.title3,
@@ -93,7 +98,7 @@ export const ErrorFallback = ({
   const content = (
     <View style={compact ? styles.compactContainer : styles.container}>
       <View style={styles.iconWrap}>
-        <AlertTriangle size={28} color={colors.accent.red} strokeWidth={1.5} />
+        <Image source={MASCOT_ERROR} style={styles.mascot} />
       </View>
 
       <Text style={styles.title}>Something went wrong</Text>

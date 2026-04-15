@@ -22,6 +22,9 @@ import { BestDayChart } from "@/src/components/analytics/BestDayChart";
 import { MonthlyHeatmap } from "@/src/components/analytics/MonthlyHeatmap";
 import { Typography } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
+import { Image } from "react-native";
+
+const MASCOT_EMPTY = require("@/assets/mascots/mascot_empty.png");
 
 const SECTION_COUNT = 10;
 
@@ -71,10 +74,16 @@ export default function AnalyticsScreen() {
           fontWeight: "600",
         },
         empty: {
-          paddingTop: 40,
+          paddingTop: 60,
           alignItems: "center",
-          gap: 8,
+          gap: 12,
           paddingHorizontal: 24,
+        },
+        mascot: {
+          width: 140,
+          height: 140,
+          marginBottom: 8,
+          resizeMode: "contain",
         },
         emptyTitle: {
           ...Typography.headline,
@@ -85,7 +94,7 @@ export default function AnalyticsScreen() {
           ...Typography.subhead,
           color: colors.text.tertiary,
           textAlign: "center",
-          lineHeight: 20,
+          lineHeight: 22,
         },
       }),
     [colors],
@@ -177,6 +186,7 @@ export default function AnalyticsScreen() {
 
         {!loading && !hasData && (
           <View style={styles.empty}>
+            <Image source={MASCOT_EMPTY} style={styles.mascot} />
             <Text style={styles.emptyTitle}>No data yet</Text>
             <Text style={styles.emptySubtitle}>
               Complete habits and focus sessions to see your analytics here.

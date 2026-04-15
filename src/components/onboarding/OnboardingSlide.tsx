@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { View, Text, StyleSheet, Dimensions, Image, ImageSourcePropType } from "react-native";
 import { LucideIcon } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import { Typography, Radius } from "@/src/constants/theme";
@@ -7,7 +7,9 @@ import { Typography, Radius } from "@/src/constants/theme";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export interface SlideData {
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  image?: ImageSourcePropType;
+  imageSize?: number;
   iconBg: string;
   iconColor: string;
   tag: string;
@@ -40,6 +42,12 @@ export const OnboardingSlide = ({ slide }: OnboardingSlideProps) => {
           borderRadius: 28,
           justifyContent: "center",
           alignItems: "center",
+        },
+        mascot: {
+          width: slide.imageSize ?? 130,
+          height: slide.imageSize ?? 130,
+          resizeMode: "contain",
+          marginLeft: -10,
         },
         textBlock: { gap: 12 },
         tagWrap: {
@@ -78,9 +86,13 @@ export const OnboardingSlide = ({ slide }: OnboardingSlideProps) => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.iconCard, { backgroundColor: slide.iconBg }]}>
-        <Icon size={40} color={slide.iconColor} strokeWidth={1.5} />
-      </View>
+      {slide.image ? (
+        <Image source={slide.image} style={styles.mascot} />
+      ) : (
+        <View style={[styles.iconCard, { backgroundColor: slide.iconBg }]}>
+          {Icon && <Icon size={40} color={slide.iconColor} strokeWidth={1.5} />}
+        </View>
+      )}
       <View style={styles.textBlock}>
         <View style={styles.tagWrap}>
           <Text style={styles.tag}>{slide.tag}</Text>

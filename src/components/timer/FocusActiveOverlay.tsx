@@ -6,12 +6,15 @@ import {
   Animated,
   Alert,
   Pressable,
+  Image,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { X, BrainCircuit } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
+
+const MASCOT_FOCUS = require("@/assets/mascots/mascot_focus.png");
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Spacing } from "@/src/constants/spacing";
 
@@ -101,13 +104,15 @@ export const FocusActiveOverlay = ({
           paddingHorizontal: 32,
         },
         iconWrap: {
-          width: 64,
-          height: 64,
-          borderRadius: Radius.xl,
-          backgroundColor: colors.surface,
+          width: 140,
+          height: 140,
           alignItems: "center",
           justifyContent: "center",
-          ...Shadow.md,
+        },
+        mascot: {
+          width: 140,
+          height: 140,
+          resizeMode: "contain",
         },
         categoryText: {
           ...Typography.callout,
@@ -181,11 +186,7 @@ export const FocusActiveOverlay = ({
         <View style={styles.overlay}>
           <SafeAreaView style={styles.safe}>
             <View style={styles.iconWrap}>
-              <BrainCircuit
-                size={28}
-                color={colors.accent.blue}
-                strokeWidth={1.5}
-              />
+              <Image source={MASCOT_FOCUS} style={styles.mascot} />
             </View>
 
             <Text style={styles.categoryText}>{category}</Text>

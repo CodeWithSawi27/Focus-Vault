@@ -1,0 +1,17 @@
+1. Welcome Mascot (mascot_welcome.png):
+A minimalist owl mascot logo, flat vector art, clean lines, modern design. The owl is in a friendly welcoming pose, waving one wing with a cheerful expression. Main body in a grayscale palette (soft whites and grays) with Sage Green accents (#B2AC88) on the wing tips and a small Sage Green scarf. White background, high contrast, professional productivity app style.
+
+2. Empty State Mascot (mascot_empty.png):
+A minimalist owl mascot, flat vector art, sleepy and patient. The owl is perched on a simple gray branch, eyes closed in a peaceful slumber. Grayscale body with a Sage Green (#B2AC88) sleeping cap. Clean, simple composition representing "waiting for data" or "nothing here yet". White background, no shadows, modern flat design.
+
+3. Loading/Thinking Mascot (mascot_loading.png):
+A minimalist owl mascot, flat vector art, intellectual and focused. The owl is wearing Sage Green (#B2AC88) circular glasses and is looking down at a small gray book held in its wings. Grayscale palette, symmetrical design, symbolizing processing and data fetching. Clean lines, white background, high-quality vector illustration.
+
+4. Error/Confusion Mascot (mascot_error.png):
+A minimalist owl mascot, flat vector art, slightly confused and dizzy. The owl has its head tilted at a sharp angle with small gray spirals for eyes. A small Sage Green (#B2AC88) exclamation mark "!" floats just above its head. Grayscale body, simple shapes, white background. Used for network errors or invalid inputs.
+
+5. Success/Celebration Mascot (mascot_success.png):
+A minimalist owl mascot, flat vector art, triumphant and happy. The owl has its wings raised high in the air with a wide joyful expression. It wears a tiny, elegant Sage Green (#B2AC88) laurel wreath crown. Grayscale palette with vibrant Sage Green highlights. White background, celebratory energy, clean vector style.
+
+6. Focus Mode Mascot (mascot_focus.png):
+A minimalist owl mascot, flat vector art, Zen and meditative. The owl is sitting in a cross-legged meditation pose with wings resting on its knees. Its eyes are closed in deep concentration. A soft Sage Green (#B2AC88) circular aura or glow surrounds the owl. Grayscale body, symmetrical and balanced composition. White background, calm and peaceful productivity aesthetic.

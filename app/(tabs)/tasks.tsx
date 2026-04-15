@@ -21,6 +21,10 @@ import { TASK_STATUSES } from "@/src/constants/tasks";
 import { Typography, Shadow, Radius } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
 import type { Task, TaskStatus } from "@/src/types";
+import { Image } from "react-native";
+
+const MASCOT_EMPTY = require("@/assets/mascots/mascot_empty.png");
+const MASCOT_LOADING = require("@/assets/mascots/mascot_loading.png");
 
 export default function TasksScreen() {
   const { colors } = useTheme();
@@ -146,12 +150,18 @@ export default function TasksScreen() {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          paddingTop: 100,
+          paddingTop: 80,
+          gap: 12,
+        },
+        mascot: {
+          width: 120,
+          height: 120,
+          resizeMode: "contain",
         },
         emptyText: {
           ...Typography.body,
           color: colors.text.tertiary,
-          marginTop: 8,
+          textAlign: "center",
         },
       }),
     [colors],
@@ -235,16 +245,16 @@ export default function TasksScreen() {
 
           {filteredTasks.length === 0 && !loading && (
             <View style={styles.emptyContainer}>
+              <Image source={MASCOT_EMPTY} style={styles.mascot} />
               <Text style={styles.emptyText}>No tasks found</Text>
             </View>
           )}
 
           {loading && filteredTasks.length === 0 && (
-            <ActivityIndicator
-              size="large"
-              color={colors.primary}
-              style={{ marginTop: 50 }}
-            />
+            <View style={styles.emptyContainer}>
+              <Image source={MASCOT_LOADING} style={styles.mascot} />
+              <Text style={styles.emptyText}>Loading tasks...</Text>
+            </View>
           )}
         </ScrollView>
       </View>

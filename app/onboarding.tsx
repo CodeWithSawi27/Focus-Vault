@@ -28,7 +28,7 @@ interface SlideData {
 
 const SLIDES: SlideData[] = [
   {
-    image: require("@/assets/Welcome.png"),
+    image: require("@/assets/mascots/mascot_welcome.png"),
     tag: "Welcome",
     title: "Build Focus.\nBuild Habits.",
     subtitle:
