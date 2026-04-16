@@ -100,7 +100,7 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="analytics"
-          options={{ title: "Analytics", tabBarIcon: makeIcon(BarChart2) }}
+          options={{ title: "analytics", tabBarIcon: makeIcon(BarChart2) }}
         />
         <Tabs.Screen
           name="profile"
