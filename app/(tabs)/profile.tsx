@@ -8,7 +8,10 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useOnboardingStore } from "@/src/store/onboardingStore";
 import {
   RefreshCw,
@@ -35,10 +38,12 @@ import { ProfileMenuSection } from "@/src/components/profile/ProfileMenuSection"
 import type { MenuItem } from "@/src/components/profile/ProfileMenuSection";
 import { Typography } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
+import { TOTAL_TAB_BAR_SPACING } from "@/src/components/ui/FloatingTabBar";
 
 const APP_VERSION = "1.0.0";
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets(); // Initialize insets
   const { user, stats, loading, fetchStats, logout, avatarBase64 } =
     useProfile();
   const { reset: resetOnboarding } = useOnboardingStore();
@@ -189,8 +194,9 @@ export default function ProfileScreen() {
         scroll: {
           paddingHorizontal: Layout.screenPadding,
           paddingTop: Spacing.md,
-          paddingBottom: 48,
           gap: Spacing.lg,
+          // FIX: Use the dynamic spacing helper + a little extra padding (Spacing.xl)
+          paddingBottom: TOTAL_TAB_BAR_SPACING(insets.bottom) + Spacing.xl,
         },
         header: { gap: 4 },
         title: {
@@ -205,7 +211,7 @@ export default function ProfileScreen() {
           paddingTop: Spacing.sm,
         },
       }),
-    [colors],
+    [colors, insets.bottom],
   );
 
   return (
