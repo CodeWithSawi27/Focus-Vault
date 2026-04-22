@@ -6,8 +6,15 @@ import {
   ScrollView,
   RefreshControl,
   Animated,
+  TouchableOpacity,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
+import { Stack } from "expo-router"; // Add this import
 import { useStaggeredEntryAnimation } from "@/src/hooks/useEntryAnimation";
 import { useAnalytics } from "@/src/hooks/useAnalytics";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -27,6 +34,7 @@ const SECTION_COUNT = 10;
 
 export default function AnalyticsScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const {
     period,
     setPeriod,
@@ -42,6 +50,7 @@ export default function AnalyticsScreen() {
     refresh,
   } = useAnalytics();
 
+  const router = useRouter();
   const sections = useStaggeredEntryAnimation(SECTION_COUNT, 70);
   const hasData = summary.totalHabitsCompleted > 0 || summary.totalSessions > 0;
 
@@ -49,13 +58,40 @@ export default function AnalyticsScreen() {
     () =>
       StyleSheet.create({
         safe: { flex: 1, backgroundColor: colors.background },
+        navbar: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: Layout.screenPadding,
+          height: 56,
+        },
+        backBtn: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 80,
+        },
+        backText: {
+          ...Typography.body,
+          color: colors.text.primary,
+        },
+        navTitle: {
+          ...Typography.headline,
+          color: colors.text.primary,
+          fontWeight: "600",
+        },
+        navSpacer: {
+          minWidth: 80, // Matches backBtn width to keep title centered
+        },
         scroll: {
           paddingHorizontal: Layout.screenPadding,
           paddingTop: Spacing.md,
-          paddingBottom: 48,
+          // Since this is no longer a TAB screen, we use standard inset padding
+          // instead of the TOTAL_TAB_BAR_SPACING.
+          paddingBottom: insets.bottom + Spacing.xl,
           gap: Spacing.lg,
         },
-        header: { gap: 4 },
+        header: { gap: 4, marginBottom: Spacing.xs },
         title: {
           ...Typography.title2,
           color: colors.text.primary,
@@ -88,11 +124,37 @@ export default function AnalyticsScreen() {
           lineHeight: 20,
         },
       }),
-    [colors],
+    [colors, insets.bottom],
   );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
+      {/* This configuration hides the header entirely, 
+          ensuring there is no "Back" button visible. 
+          The user MUST swipe to return.
+      */}
+
+      <Stack.Screen
+        options={{
+          headerShown: false,
+          gestureEnabled: true, // Ensures swipe-to-go-back works
+        }}
+      />
+
+      {/* CUSTOM NAVBAR */}
+      <View style={styles.navbar}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          activeOpacity={0.7}
+        >
+          <ArrowLeft size={20} color={colors.text.primary} strokeWidth={2} />
+          <Text style={styles.backText}>Profile</Text>
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>Analytics</Text>
+        <View style={styles.navSpacer} />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

@@ -16,6 +16,8 @@ export const lightColors = {
   accent: {
     green: "#25671E",
     greenMuted: "rgba(37, 103, 30, 0.12)",
+    sage: "#869D7A",
+    sageMuted: "rgba(134, 157, 122, 0.12)",
     red: "#CC2B2B",
     redMuted: "rgba(204, 43, 43, 0.1)",
     blue: "#1A56DB",
@@ -48,6 +50,8 @@ export const darkColors = {
   accent: {
     green: "#34C759",
     greenMuted: "rgba(52, 199, 89, 0.15)",
+    sage: "#869D7A",
+    sageMuted: "rgba(134, 157, 122, 0.12)",
     red: "#FF453A",
     redMuted: "rgba(255, 69, 58, 0.15)",
     blue: "#0A84FF",

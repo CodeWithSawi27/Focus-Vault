@@ -7,7 +7,10 @@ import {
   RefreshControl,
   Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useTimer } from "@/src/hooks/useTimer";
@@ -24,6 +27,7 @@ import { SessionHistoryList } from "@/src/components/timer/SessionHistoryList";
 import { FocusActiveOverlay } from "@/src/components/timer/FocusActiveOverlay";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
+import { TOTAL_TAB_BAR_SPACING } from "@/src/components/ui/FloatingTabBar";
 
 const SESSION_TIPS = [
   "Silence notifications during your session.",
@@ -32,6 +36,7 @@ const SESSION_TIPS = [
   "Take a 5 minute break after each session.",
   "Close unnecessary browser tabs before starting.",
 ];
+
 const getTip = () =>
   SESSION_TIPS[new Date().getMinutes() % SESSION_TIPS.length];
 
@@ -68,6 +73,7 @@ const useFadeUp = (delay = 0) => {
 export default function TimerScreen() {
   const { colors } = useTheme();
 
+  const insets = useSafeAreaInsets(); // Initialize insets
   const {
     duration,
     remaining,
@@ -176,10 +182,12 @@ export default function TimerScreen() {
           flexGrow: 1,
           paddingHorizontal: Layout.screenPadding,
           paddingTop: Spacing.md,
-          paddingBottom: 48,
           gap: Spacing.lg,
           alignItems: "center",
+          // FIX: Use the dynamic spacing helper + a little extra padding (Spacing.xl)
+          paddingBottom: TOTAL_TAB_BAR_SPACING(insets.bottom) + Spacing.xl,
         },
+
         headerWrap: { alignSelf: "stretch", gap: 4 },
         fullWidth: { alignSelf: "stretch" },
         title: {
@@ -253,7 +261,7 @@ export default function TimerScreen() {
           lineHeight: 22,
         },
       }),
-    [colors],
+    [colors, insets.bottom],
   );
 
   return (

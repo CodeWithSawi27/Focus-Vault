@@ -1,136 +1,71 @@
-import { useMemo } from "react";
 import { Tabs } from "expo-router";
-import {
-  LayoutDashboard,
-  ListChecks,
-  CheckSquare,
-  Timer,
-  BarChart2,
-  UserCircle,
-} from "lucide-react-native";
+import { Home, Repeat, CheckSquare, Clock, User } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
-import { Platform, View, StyleSheet } from "react-native";
+import { FloatingTabBar } from "@/src/components/ui/FloatingTabBar";
 import { OfflineBanner } from "@/src/components/ui/OfflineBanner";
-
-interface TabIconProps {
-  Icon: React.ElementType;
-  focused: boolean;
-  activeColor: string;
-  inactiveColor: string;
-  activeBg: string;
-}
-
-const TabIcon = ({
-  Icon,
-  focused,
-  activeColor,
-  inactiveColor,
-  activeBg,
-}: TabIconProps) => (
-  <View
-    style={[staticStyles.iconWrapper, focused && { backgroundColor: activeBg }]}
-  >
-    <Icon
-      size={22}
-      strokeWidth={focused ? 2 : 1.5}
-      color={focused ? activeColor : inactiveColor}
-    />
-  </View>
-);
+import { ScreenWrapper } from "@/src/components/ui/ScreenWrapper"; // Import your new wrapper
 
 export default function TabLayout() {
-  const { colors, isDark } = useTheme();
-
-  const tabBarStyle = useMemo(
-    () => ({
-      backgroundColor: isDark
-        ? "rgba(18,18,18,0.97)"
-        : "rgba(250,250,250,0.97)",
-      borderTopColor: colors.border,
-    }),
-    [colors, isDark],
-  );
+  const { colors } = useTheme();
 
   const makeIcon =
-    (Icon: React.ElementType) =>
-    ({ focused }: { focused: boolean }) => (
-      <TabIcon
-        Icon={Icon}
-        focused={focused}
-        activeColor={colors.text.primary}
-        inactiveColor={colors.text.tertiary}
-        activeBg={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)"}
-      />
+    (Icon: any) =>
+    ({ color }: { color: string }) => (
+      <Icon size={24} color={color} strokeWidth={1.3} />
     );
 
   return (
-    // Fragment wraps both the offline banner and tabs
-    // Banner sits above the navigator at zIndex: 1000
     <>
       <OfflineBanner />
+      {/* Wrapping Tabs in ScreenWrapper here applies the 
+          calculated bottom padding to every single screen 
+          rendered inside this navigator.
+      */}
+
       <Tabs
+        tabBar={(props) => <FloatingTabBar {...props} />}
         screenOptions={{
           headerShown: false,
-          tabBarShowLabel: true,
-          tabBarActiveTintColor: colors.text.primary,
+          tabBarActiveTintColor: colors.accent.sage,
           tabBarInactiveTintColor: colors.text.tertiary,
-          tabBarLabelStyle: staticStyles.label,
-          tabBarStyle: [staticStyles.tabBar, tabBarStyle],
-          tabBarItemStyle: staticStyles.tabItem,
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
             title: "Dashboard",
-            tabBarIcon: makeIcon(LayoutDashboard),
+            tabBarIcon: makeIcon(Home),
           }}
         />
         <Tabs.Screen
           name="habits"
-          options={{ title: "Habits", tabBarIcon: makeIcon(ListChecks) }}
+          options={{
+            title: "Habits",
+            tabBarIcon: makeIcon(Repeat),
+          }}
         />
         <Tabs.Screen
           name="tasks"
-          options={{ title: "Tasks", tabBarIcon: makeIcon(CheckSquare) }}
+          options={{
+            title: "Tasks",
+            tabBarIcon: makeIcon(CheckSquare),
+          }}
         />
         <Tabs.Screen
           name="focus"
-          options={{ title: "Focus", tabBarIcon: makeIcon(Timer) }}
-        />
-        <Tabs.Screen
-          name="analytics"
-          options={{ title: "analytics", tabBarIcon: makeIcon(BarChart2) }}
+          options={{
+            title: "Focus",
+            tabBarIcon: makeIcon(Clock),
+          }}
         />
         <Tabs.Screen
           name="profile"
-          options={{ title: "Profile", tabBarIcon: makeIcon(UserCircle) }}
+          options={{
+            title: "Profile",
+            tabBarIcon: makeIcon(User),
+          }}
         />
       </Tabs>
     </>
   );
 }
-
-const staticStyles = StyleSheet.create({
-  tabBar: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    height: Platform.OS === "ios" ? 84 : 64,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === "ios" ? 28 : 10,
-    elevation: 0,
-  },
-  tabItem: { paddingTop: 4 },
-  iconWrapper: {
-    width: 40,
-    height: 32,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 10,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: "500",
-    letterSpacing: 0.1,
-    marginTop: 2,
-  },
-});

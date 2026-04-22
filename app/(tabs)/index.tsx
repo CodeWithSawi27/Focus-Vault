@@ -6,7 +6,10 @@ import {
   ScrollView,
   RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context"; // Added useSafeAreaInsets
 import { useProfile } from "@/src/hooks/useProfile";
 import { useDashboard } from "@/src/hooks/useDashboard";
 import { useAuthStore } from "@/src/store/authStore";
@@ -20,11 +23,14 @@ import { UpcomingReminderCard } from "@/src/components/dashboard/UpcomingReminde
 import { MotivationalQuoteCard } from "@/src/components/dashboard/MotivationalQuoteCard";
 import { Typography } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
+import { TOTAL_TAB_BAR_SPACING } from "@/src/components/ui/FloatingTabBar"; // Import spacing constant
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets(); // Initialize insets
   const { avatarBase64 } = useProfile();
   const { user } = useAuthStore();
+
   const {
     greeting,
     formattedDate,
@@ -50,7 +56,8 @@ export default function DashboardScreen() {
         scroll: {
           paddingHorizontal: Layout.screenPadding,
           paddingTop: Spacing.md,
-          paddingBottom: 48,
+          // FIX: Use the dynamic spacing helper + a little extra padding (Spacing.xl)
+          paddingBottom: TOTAL_TAB_BAR_SPACING(insets.bottom) + Spacing.xl,
           gap: Spacing.lg,
         },
         section: {
@@ -64,7 +71,7 @@ export default function DashboardScreen() {
           fontWeight: "600",
         },
       }),
-    [colors],
+    [colors, insets.bottom], // Add insets.bottom to dependency array
   );
 
   return (

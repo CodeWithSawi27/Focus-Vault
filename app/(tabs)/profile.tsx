@@ -14,6 +14,7 @@ import {
   RefreshCw,
   User,
   Bell,
+  BarChart2,
   Shield,
   Star,
   LogOut,
@@ -112,6 +113,13 @@ export default function ProfileScreen() {
 
   const appItems: MenuItem[] = useMemo(
     () => [
+      {
+        id: "analytics",
+        label: "Analytics",
+        sublabel: "Insights and trends",
+        icon: BarChart2, // Switched to BarChart2 for better visual distinction
+        onPress: () => router.push("/analytics"),
+      },
       {
         id: "security",
         label: "Security",

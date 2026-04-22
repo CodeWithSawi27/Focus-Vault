@@ -1,48 +1,31 @@
 import { useMemo, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Animated,
-  Platform,
-} from "react-native";
+import { View, StyleSheet, Pressable, Animated, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "@/src/context/ThemeContext";
-import { Typography, Shadow, Radius } from "@/src/constants/theme";
+import { Radius } from "@/src/constants/theme";
 
-// ─── Export so tab screens can pad their scroll content ───────────────────────
-export const FLOATING_TAB_BAR_HEIGHT = 80;
-export const FLOATING_TAB_BAR_BOTTOM_OFFSET = 24;
+// ─── Constants for layout ────────────────────────────────────────────────────
+export const FLOATING_TAB_BAR_HEIGHT = 64;
+export const TAB_BAR_SIDE_MARGIN = 24;
+// This is the total height occupied at the bottom of the screen
+export const TOTAL_TAB_BAR_SPACING = (insetsBottom: number) =>
+  FLOATING_TAB_BAR_HEIGHT + insetsBottom;
 
-// ─── Per-item animated press wrapper ─────────────────────────────────────────
 const AnimatedPressable = ({
   children,
   onPress,
   onLongPress,
-  accessibilityRole,
-  accessibilityState,
-  accessibilityLabel,
-  style,
-}: {
-  children: React.ReactNode;
-  onPress: () => void;
-  onLongPress: () => void;
-  accessibilityRole: "button";
-  accessibilityState?: object;
-  accessibilityLabel?: string;
-  style?: object;
-}) => {
+  focused,
+}: any) => {
   const scale = useMemo(() => new Animated.Value(1), []);
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scale, {
-      toValue: 0.88,
+      toValue: 0.9, // Slightly more pronounced for better feedback
       useNativeDriver: true,
       speed: 50,
-      bounciness: 4,
     }).start();
   }, [scale]);
 
@@ -51,7 +34,6 @@ const AnimatedPressable = ({
       toValue: 1,
       useNativeDriver: true,
       speed: 50,
-      bounciness: 4,
     }).start();
   }, [scale]);
 
@@ -61,19 +43,21 @@ const AnimatedPressable = ({
       onLongPress={onLongPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      accessibilityRole={accessibilityRole}
-      accessibilityState={accessibilityState}
-      accessibilityLabel={accessibilityLabel}
-      style={style}
+      style={{ flex: 1, alignItems: "center" }}
     >
-      <Animated.View style={{ transform: [{ scale }] }}>
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         {children}
       </Animated.View>
     </Pressable>
   );
 };
 
-// ─── Main floating tab bar ────────────────────────────────────────────────────
 export const FloatingTabBar = ({
   state,
   descriptors,
@@ -82,80 +66,66 @@ export const FloatingTabBar = ({
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const bottomOffset = Math.max(insets.bottom, 16) + 8;
+  // Reduced the bottom offset to 16px + safe area for a more "docked" look
+  const bottomOffset = Math.max(insets.bottom, 16);
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        // Outer wrapper — positions the bar on screen
         container: {
           position: "absolute",
           bottom: bottomOffset,
-          left: 24,
-          right: 24,
-          borderRadius: Radius.xl,
-          overflow: "hidden",
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.07)",
-          // Rich shadow so it visually lifts off the screen
-          ...Shadow.lg,
-          shadowOpacity: isDark ? 0.4 : 0.12,
-          shadowRadius: 24,
+          left: TAB_BAR_SIDE_MARGIN,
+          right: TAB_BAR_SIDE_MARGIN,
+          height: FLOATING_TAB_BAR_HEIGHT,
+          borderRadius: Radius.full,
+          backgroundColor: isDark
+            ? "rgba(20, 20, 20, 0.8)"
+            : "rgba(255, 255, 255, 0.85)",
+          borderWidth: 1,
+          borderColor: isDark
+            ? "rgba(255, 255, 255, 0.1)"
+            : "rgba(0, 0, 0, 0.05)",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: isDark ? 0.5 : 0.15,
+          shadowRadius: 12,
+          elevation: 5,
+          overflow: Platform.OS === "ios" ? "visible" : "hidden", // Allow shadow on iOS
         },
-
-        // BlurView fills the container
         blur: {
-          borderRadius: Radius.xl,
+          flex: 1,
+          borderRadius: Radius.full,
+          overflow: "hidden",
         },
-
-        // Semi-transparent layer on top of blur for extra tinting
         inner: {
           flexDirection: "row",
-          paddingVertical: 10,
-          paddingHorizontal: 6,
-          backgroundColor: isDark
-            ? "rgba(15,15,15,0.82)"
-            : "rgba(252,252,252,0.82)",
-        },
-
-        // Each tab item
-        tabItem: {
-          flex: 1,
+          height: "100%",
+          paddingHorizontal: 8,
           alignItems: "center",
-          justifyContent: "center",
-          gap: 4,
-          paddingVertical: 2,
         },
-
-        // Icon container — gets a background when focused
         iconWrap: {
-          width: 46,
-          height: 30,
+          width: 44,
+          height: 44,
           justifyContent: "center",
           alignItems: "center",
-          borderRadius: 10,
         },
-
-        iconWrapActive: {
-          backgroundColor: isDark
-            ? "rgba(255,255,255,0.12)"
-            : "rgba(0,0,0,0.07)",
-        },
-
-        // Label
-        label: {
-          fontSize: 10,
-          fontWeight: "500",
-          letterSpacing: 0.2,
+        activeIndicator: {
+          position: "absolute",
+          bottom: -6,
+          width: 4,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: colors.accent.sage,
         },
       }),
     [colors, isDark, bottomOffset],
   );
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={styles.container}>
       <BlurView
-        intensity={isDark ? 50 : 70}
+        intensity={Platform.OS === "ios" ? 30 : 100}
         tint={isDark ? "dark" : "light"}
         style={styles.blur}
       >
@@ -163,55 +133,24 @@ export const FloatingTabBar = ({
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const focused = state.index === index;
+            if (options.href === null) return null;
 
-            const label =
-              options.tabBarLabel !== undefined
-                ? String(options.tabBarLabel)
-                : options.title !== undefined
-                  ? options.title
-                  : route.name;
-
-            const color = focused ? colors.text.primary : colors.text.tertiary;
-
-            const handlePress = () => {
-              const event = navigation.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            };
-
-            const handleLongPress = () => {
-              navigation.emit({
-                type: "tabLongPress",
-                target: route.key,
-              });
-            };
+            const color = focused
+              ? colors.accent.sage
+              : isDark
+                ? "#888888"
+                : "#4A4A4A";
 
             return (
               <AnimatedPressable
                 key={route.key}
-                onPress={handlePress}
-                onLongPress={handleLongPress}
-                accessibilityRole="button"
-                accessibilityState={focused ? { selected: true } : {}}
-                accessibilityLabel={options.tabBarAccessibilityLabel}
-                style={styles.tabItem}
+                onPress={() => navigation.navigate(route.name)}
+                focused={focused}
               >
-                <View
-                  style={[styles.iconWrap, focused && styles.iconWrapActive]}
-                >
-                  {options.tabBarIcon?.({
-                    focused,
-                    color,
-                    size: 22,
-                  })}
+                <View style={styles.iconWrap}>
+                  {options.tabBarIcon?.({ focused, color, size: 24 })}
+                  {focused && <View style={styles.activeIndicator} />}
                 </View>
-
-                <Text style={[styles.label, { color }]}>{label}</Text>
               </AnimatedPressable>
             );
           })}

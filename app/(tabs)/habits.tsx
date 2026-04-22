@@ -8,21 +8,29 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useHabits, CreateHabitPayload } from "@/src/hooks/useHabits";
 import { useAuthStore } from "@/src/store/authStore";
 import { HabitList } from "@/src/components/habits/HabitList";
 import { AddHabitModal } from "@/src/components/habits/AddHabitModal";
-import { HABIT_CATEGORIES, type HabitCategoryId } from "@/src/constants/categories";
+import {
+  HABIT_CATEGORIES,
+  type HabitCategoryId,
+} from "@/src/constants/categories";
 import { Typography, Radius, Shadow } from "@/src/constants/theme";
 import { Layout, Spacing } from "@/src/constants/spacing";
 import type { Habit } from "@/src/types";
 import { supabase } from "@/src/services/supabase";
+import { TOTAL_TAB_BAR_SPACING } from "@/src/components/ui/FloatingTabBar";
 
 export default function HabitsScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets(); // Initialize insets
   const {
     habits,
     loading,
@@ -37,7 +45,9 @@ export default function HabitsScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<HabitCategoryId | "all">("all");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<
+    HabitCategoryId | "all"
+  >("all");
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(
     new Set(),
   );
@@ -189,7 +199,6 @@ export default function HabitsScreen() {
           alignItems: "center",
           paddingHorizontal: Layout.screenPadding,
           paddingTop: Spacing.sm,
-          paddingBottom: Spacing.md,
         },
         title: { ...Typography.title1, color: colors.text.primary },
         subtitle: {
@@ -240,8 +249,9 @@ export default function HabitsScreen() {
         },
         scroll: {
           paddingHorizontal: Layout.screenPadding,
-          paddingBottom: 32,
           gap: Spacing.sm,
+          // FIX: Use the dynamic spacing helper + a little extra padding (Spacing.xl)
+          paddingBottom: TOTAL_TAB_BAR_SPACING(insets.bottom) + Spacing.xl,
         },
       }),
     [colors],
@@ -297,10 +307,16 @@ export default function HabitsScreen() {
               ]}
               onPress={() => setSelectedCategoryId(cat.id)}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <cat.icon 
-                  size={14} 
-                  color={selectedCategoryId === cat.id ? colors.text.inverse : colors.text.secondary} 
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
+                <cat.icon
+                  size={14}
+                  color={
+                    selectedCategoryId === cat.id
+                      ? colors.text.inverse
+                      : colors.text.secondary
+                  }
                 />
                 <Text
                   style={[
