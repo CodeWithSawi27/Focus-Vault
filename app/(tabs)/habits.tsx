@@ -72,7 +72,8 @@ export default function HabitsScreen() {
       .select("habit_id")
       .eq("user_id", user.uid)
       .gte("completed_at", start.toISOString())
-      .lte("completed_at", end.toISOString());
+      .lte("completed_at", end.toISOString())
+      .returns<Array<{ habit_id: string }>>();
     if (data) setCompletedTodayIds(new Set(data.map((l) => l.habit_id)));
   }, [user]);
 
