@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Animated,
 } from "react-native";
+import { useRouter } from "expo-router";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -72,6 +73,7 @@ const useFadeUp = (delay = 0) => {
 
 export default function TimerScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
 
   const insets = useSafeAreaInsets(); // Initialize insets
   const {
@@ -386,7 +388,10 @@ export default function TimerScreen() {
               </Animated.View>
 
               <Animated.View style={[styles.fullWidth, historyAnim]}>
-                <SessionHistoryList sessions={sessions} onViewAll={() => {}} />
+                <SessionHistoryList
+                  sessions={sessions}
+                  onViewAll={() => router.push("/history")}
+                />
               </Animated.View>
             </>
           )}

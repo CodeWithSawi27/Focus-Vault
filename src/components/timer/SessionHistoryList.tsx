@@ -10,6 +10,8 @@ import type { FocusSessionRecord } from "@/src/hooks/useSessionHistory";
 interface SessionHistoryListProps {
   sessions: FocusSessionRecord[];
   onViewAll?: () => void;
+  hideHeader?: boolean;
+  maxItems?: number;
 }
 
 const formatDate = (iso: string): string => {
@@ -31,6 +33,8 @@ const formatDuration = (seconds: number): string => {
 export const SessionHistoryList = ({
   sessions,
   onViewAll,
+  hideHeader = false,
+  maxItems = 5,
 }: SessionHistoryListProps) => {
   const { colors } = useTheme();
 
@@ -139,19 +143,21 @@ export const SessionHistoryList = ({
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.titleRow}>
-        <Text style={styles.sectionLabel}>Recent Sessions</Text>
-        {onViewAll && sessions.length >= 5 && (
-          <TouchableOpacity onPress={onViewAll} activeOpacity={0.7}>
-            <Text style={styles.viewAll}>View all</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {!hideHeader && (
+        <View style={styles.titleRow}>
+          <Text style={styles.sectionLabel}>Recent Sessions</Text>
+          {onViewAll && sessions.length >= 5 && (
+            <TouchableOpacity onPress={onViewAll} activeOpacity={0.7}>
+              <Text style={styles.viewAll}>View all</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       <View style={styles.card}>
-        {sessions.slice(0, 5).map((session, index) => {
+        {sessions.slice(0, maxItems).map((session, index) => {
           const cat = getCategoryById(session.category);
-          const isLast = index === Math.min(sessions.length, 5) - 1;
+          const isLast = index === Math.min(sessions.length, maxItems) - 1;
           return (
             <View
               key={session.id}

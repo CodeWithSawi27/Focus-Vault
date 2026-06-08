@@ -74,6 +74,7 @@ function RootLayoutInner() {
         <Stack.Screen name="privacy" />
         <Stack.Screen name="about" />
         <Stack.Screen name="security" />
+        <Stack.Screen name="history" />
       </Stack>
       <LockScreen />
     </View>
